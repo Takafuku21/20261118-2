@@ -43,6 +43,7 @@ class DemoApplicationTests {
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"title\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"description\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("type=\"checkbox\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"done\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/todo/confirm\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo\"")));
@@ -61,6 +62,15 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/complete\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
+	}
+
+	@Test
+	void todoConfirmPageTreatsUncheckedDoneAsFalse() throws Exception {
+		mockMvc.perform(post("/todo/confirm")
+						.param("title", "サンプルタスク")
+						.param("description", "タスクの説明"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了")));
 	}
 
 	@Test
