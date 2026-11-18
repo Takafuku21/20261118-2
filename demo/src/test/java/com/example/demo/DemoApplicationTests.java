@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -107,12 +108,14 @@ class DemoApplicationTests {
 	}
 
 	@Test
-	void todoCompletePageDisplaysSuccessMessageTitleAndListLink() throws Exception {
-		mockMvc.perform(post("/todo/complete").param("title", "サンプルタスク"))
-				.andExpect(status().isOk())
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("登録が完了しました")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("サンプルタスク")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo\"")));
+	void todoCompleteRegistersTodoAndRedirectsToList() throws Exception {
+		String title = "登録テスト";
+		mockMvc.perform(post("/todo/complete").param("title", title))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/todo"));
+
+		assertEquals(1, jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM todos WHERE title = ?", Integer.class, title));
 	}
 
 }
