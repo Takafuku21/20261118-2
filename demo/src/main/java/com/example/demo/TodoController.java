@@ -16,4 +16,9 @@ public class TodoController {
 		model.addAttribute("todos", List.of());
 		return "todo/list";
 	}
+
+	@GetMapping("/new")
+	public String newTodo() {
+		return "todo/new";
+	}
 }

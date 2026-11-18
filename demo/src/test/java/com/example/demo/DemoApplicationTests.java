@@ -36,4 +36,13 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
 	}
 
+	@Test
+	void todoNewPageDisplaysTitleInputAndNavigationLinks() throws Exception {
+		mockMvc.perform(get("/todo/new"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("type=\"text\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/confirm\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo\"")));
+	}
+
 }
