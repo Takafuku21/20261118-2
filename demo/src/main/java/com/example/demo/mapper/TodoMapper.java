@@ -14,5 +14,5 @@ public interface TodoMapper {
 
 	int deleteById(Long id);
 
-	int updateTitle(Todo todo);
+	int update(Todo todo);
 }

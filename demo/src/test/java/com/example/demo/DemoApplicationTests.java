@@ -147,6 +147,7 @@ class DemoApplicationTests {
 		mockMvc.perform(get("/todo/{id}/edit", todo.getId()))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"編集前タイトル\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"completed\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"action=\"/todo/" + todo.getId() + "/update\"")));
 	}
@@ -159,11 +160,24 @@ class DemoApplicationTests {
 		todoMapper.insert(todo);
 
 		mockMvc.perform(post("/todo/{id}/update", todo.getId())
-						.param("title", "更新後タイトル"))
+						.param("title", "更新後タイトル")
+						.param("completed", "true"))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("/todo"));
+				.andExpect(redirectedUrl("/todo"))
+				.andExpect(flash().attribute("successMessage", "更新が完了しました"));
 
-		assertEquals("更新後タイトル", todoMapper.findById(todo.getId()).getTitle());
+		Todo updatedTodo = todoMapper.findById(todo.getId());
+		assertEquals("更新後タイトル", updatedTodo.getTitle());
+		assertEquals(true, updatedTodo.getCompleted());
+	}
+
+	@Test
+	void updatingMissingTodoShowsErrorFlashMessage() throws Exception {
+		mockMvc.perform(post("/todo/{id}/update", Long.MAX_VALUE)
+						.param("title", "存在しないToDo"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/todo"))
+				.andExpect(flash().attribute("errorMessage", "更新に失敗しました"));
 	}
 
 	@Test

@@ -42,11 +42,20 @@ public class TodoController {
 	}
 
 	@PostMapping("/{id}/update")
-	public String update(@PathVariable Long id, @RequestParam("title") String title) {
+	public String update(
+			@PathVariable Long id,
+			@RequestParam("title") String title,
+			@RequestParam(name = "completed", defaultValue = "false") Boolean completed,
+			RedirectAttributes redirectAttributes) {
 		Todo todo = new Todo();
 		todo.setId(id);
 		todo.setTitle(title);
-		todoService.updateTitle(todo);
+		todo.setCompleted(completed);
+		if (todoService.update(todo)) {
+			redirectAttributes.addFlashAttribute("successMessage", "更新が完了しました");
+		} else {
+			redirectAttributes.addFlashAttribute("errorMessage", "更新に失敗しました");
+		}
 		return "redirect:/todo";
 	}
 

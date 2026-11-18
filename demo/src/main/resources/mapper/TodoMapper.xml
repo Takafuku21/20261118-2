@@ -26,9 +26,10 @@
 		WHERE id = #{id}
 	</delete>
 
-	<update id="updateTitle" parameterType="com.example.demo.Todo">
+	<update id="update" parameterType="com.example.demo.Todo">
 		UPDATE todos
-		SET title = #{title}
+		SET title = #{title},
+			completed = #{completed}
 		WHERE id = #{id}
 	</update>
 </mapper>

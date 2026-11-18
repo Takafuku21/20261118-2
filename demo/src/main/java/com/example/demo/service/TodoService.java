@@ -32,7 +32,7 @@ public class TodoService {
 		return todoMapper.deleteById(id) > 0;
 	}
 
-	public boolean updateTitle(Todo todo) {
-		return todoMapper.updateTitle(todo) > 0;
+	public boolean update(Todo todo) {
+		return todoMapper.update(todo) > 0;
 	}
 }
