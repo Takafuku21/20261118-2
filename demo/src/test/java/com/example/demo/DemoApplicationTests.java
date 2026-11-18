@@ -112,6 +112,8 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"/todo/" + incompleteTodo.getId() + "/delete")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("btn-danger btn-sm")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"return confirm('本当に削除しますか？');")))
 				.andExpect(content().string(org.hamcrest.Matchers.not(
 						org.hamcrest.Matchers.containsString("ToDoがまだ登録されていません"))))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
