@@ -7,6 +7,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.example.demo.mapper.TodoMapper;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -22,6 +27,9 @@ class DemoApplicationTests {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
+	@Autowired
+	private TodoMapper todoMapper;
+
 	@Test
 	void contextLoads() {
 	}
@@ -29,6 +37,20 @@ class DemoApplicationTests {
 	@Test
 	void todosTableIsInitializedAtStartup() {
 		jdbcTemplate.queryForList("SELECT id, title, completed FROM todos");
+	}
+
+	@Test
+	void todoMapperInsertsAndFindsTodos() {
+		Todo todo = new Todo();
+		todo.setTitle("MyBatisテスト");
+		todo.setCompleted(false);
+
+		assertEquals(1, todoMapper.insert(todo));
+		assertNotNull(todo.getId());
+		assertTrue(todoMapper.findAll().stream()
+				.anyMatch(found -> found.getId().equals(todo.getId())
+						&& found.getTitle().equals(todo.getTitle())
+						&& found.getCompleted().equals(todo.getCompleted())));
 	}
 
 	@Test
