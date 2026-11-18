@@ -8,7 +8,11 @@ public interface TodoMapper {
 
 	List<Todo> findAll();
 
+	Todo findById(Long id);
+
 	int insert(Todo todo);
 
 	int deleteById(Long id);
+
+	int updateTitle(Todo todo);
 }

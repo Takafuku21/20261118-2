@@ -56,6 +56,20 @@ class DemoApplicationTests {
 	}
 
 	@Test
+	void todoMapperFindsTodoById() {
+		Todo todo = new Todo();
+		todo.setTitle("ID検索テスト");
+		todo.setCompleted(false);
+		todoMapper.insert(todo);
+
+		Todo found = todoMapper.findById(todo.getId());
+
+		assertNotNull(found);
+		assertEquals(todo.getId(), found.getId());
+		assertEquals(todo.getTitle(), found.getTitle());
+	}
+
+	@Test
 	void todoMapperDeletesTodoById() {
 		Todo todo = new Todo();
 		todo.setTitle("削除Mapperテスト");
@@ -111,6 +125,9 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("操作")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"/todo/" + incompleteTodo.getId() + "/edit")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("btn-outline-primary btn-sm")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"/todo/" + incompleteTodo.getId() + "/delete")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("btn-danger btn-sm")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
@@ -118,6 +135,35 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.not(
 						org.hamcrest.Matchers.containsString("ToDoがまだ登録されていません"))))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
+	}
+
+	@Test
+	void todoEditPageDisplaysExistingTitleAndUpdateAction() throws Exception {
+		Todo todo = new Todo();
+		todo.setTitle("編集前タイトル");
+		todo.setCompleted(false);
+		todoMapper.insert(todo);
+
+		mockMvc.perform(get("/todo/{id}/edit", todo.getId()))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"編集前タイトル\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"action=\"/todo/" + todo.getId() + "/update\"")));
+	}
+
+	@Test
+	void updatingTodoTitlePersistsAndRedirectsToList() throws Exception {
+		Todo todo = new Todo();
+		todo.setTitle("更新前タイトル");
+		todo.setCompleted(false);
+		todoMapper.insert(todo);
+
+		mockMvc.perform(post("/todo/{id}/update", todo.getId())
+						.param("title", "更新後タイトル"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/todo"));
+
+		assertEquals("更新後タイトル", todoMapper.findById(todo.getId()).getTitle());
 	}
 
 	@Test

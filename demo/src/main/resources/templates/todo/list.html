@@ -44,10 +44,14 @@
 			<td th:text="${todo.title}"></td>
 			<td th:text="${todo.completed} ? '完了' : '未完了'"></td>
 			<td>
-				<form method="post" th:action="@{/todo/{id}/delete(id=${todo.id})}"
-					  onsubmit="return confirm('本当に削除しますか？');">
-					<button type="submit" class="btn btn-danger btn-sm">削除</button>
-				</form>
+				<div class="d-flex gap-2">
+					<a class="btn btn-outline-primary btn-sm"
+					   th:href="@{/todo/{id}/edit(id=${todo.id})}">編集</a>
+					<form method="post" th:action="@{/todo/{id}/delete(id=${todo.id})}"
+						  onsubmit="return confirm('本当に削除しますか？');">
+						<button type="submit" class="btn btn-danger btn-sm">削除</button>
+					</form>
+				</div>
 			</td>
 		</tr>
 		</tbody>

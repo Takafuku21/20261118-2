@@ -9,6 +9,12 @@
 		ORDER BY id
 	</select>
 
+	<select id="findById" parameterType="long" resultType="com.example.demo.Todo">
+		SELECT id, title, completed
+		FROM todos
+		WHERE id = #{id}
+	</select>
+
 	<insert id="insert" parameterType="com.example.demo.Todo"
 			useGeneratedKeys="true" keyProperty="id">
 		INSERT INTO todos (title, completed)
@@ -19,4 +25,10 @@
 		DELETE FROM todos
 		WHERE id = #{id}
 	</delete>
+
+	<update id="updateTitle" parameterType="com.example.demo.Todo">
+		UPDATE todos
+		SET title = #{title}
+		WHERE id = #{id}
+	</update>
 </mapper>
