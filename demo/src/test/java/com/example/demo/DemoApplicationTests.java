@@ -62,10 +62,15 @@ class DemoApplicationTests {
 	}
 
 	@Test
-	void todoListPageDisplaysTableAndNewTodoLink() throws Exception {
+	void todoListPageDisplaysTodosFromDatabase() throws Exception {
+		Todo todo = new Todo();
+		todo.setTitle("一覧表示テスト");
+		todo.setCompleted(false);
+		todoMapper.insert(todo);
+
 		mockMvc.perform(get("/todo"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("登録済みのToDoはありません。")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("一覧表示テスト")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
 	}
 

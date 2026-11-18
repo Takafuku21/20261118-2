@@ -1,7 +1,5 @@
 package com.example.demo;
 
-import java.util.List;
-
 import com.example.demo.service.TodoService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -22,7 +20,7 @@ public class TodoController {
 
 	@GetMapping
 	public String list(Model model) {
-		model.addAttribute("todos", List.of());
+		model.addAttribute("todos", todoService.findAll());
 		return "todo/list";
 	}
 

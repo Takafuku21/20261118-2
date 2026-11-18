@@ -24,7 +24,7 @@
 		</thead>
 		<tbody>
 		<tr th:each="todo : ${todos}">
-			<td th:text="${todo}"></td>
+			<td th:text="${todo.title}"></td>
 		</tr>
 		<tr th:if="${#lists.isEmpty(todos)}">
 			<td class="text-center text-muted">登録済みのToDoはありません。</td>

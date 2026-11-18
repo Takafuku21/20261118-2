@@ -1,5 +1,7 @@
 package com.example.demo.service;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 import com.example.demo.Todo;
@@ -16,5 +18,9 @@ public class TodoService {
 
 	public void register(Todo todo) {
 		todoMapper.insert(todo);
+	}
+
+	public List<Todo> findAll() {
+		return todoMapper.findAll();
 	}
 }
