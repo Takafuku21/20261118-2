@@ -55,6 +55,18 @@ class DemoApplicationTests {
 	}
 
 	@Test
+	void todoMapperDeletesTodoById() {
+		Todo todo = new Todo();
+		todo.setTitle("削除Mapperテスト");
+		todo.setCompleted(false);
+		todoMapper.insert(todo);
+
+		assertEquals(1, todoMapper.deleteById(todo.getId()));
+		assertEquals(0, jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM todos WHERE id = ?", Integer.class, todo.getId()));
+	}
+
+	@Test
 	void todoListShowsEmptyStateWhenThereAreNoTodos() throws Exception {
 		jdbcTemplate.update("DELETE FROM todos");
 
@@ -96,9 +108,35 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了一覧テスト")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("操作")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"/todo/" + incompleteTodo.getId() + "/delete")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("btn-danger btn-sm")))
 				.andExpect(content().string(org.hamcrest.Matchers.not(
 						org.hamcrest.Matchers.containsString("ToDoがまだ登録されていません"))))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
+	}
+
+	@Test
+	void deletingTodoRedirectsToListAndPreservesOtherTodos() throws Exception {
+		Todo todoToDelete = new Todo();
+		todoToDelete.setTitle("削除対象テスト");
+		todoToDelete.setCompleted(false);
+		todoMapper.insert(todoToDelete);
+
+		Todo otherTodo = new Todo();
+		otherTodo.setTitle("削除対象外テスト");
+		otherTodo.setCompleted(false);
+		todoMapper.insert(otherTodo);
+
+		mockMvc.perform(post("/todo/{id}/delete", todoToDelete.getId()))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/todo"));
+
+		assertEquals(0, jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM todos WHERE id = ?", Integer.class, todoToDelete.getId()));
+		assertEquals(1, jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM todos WHERE id = ?", Integer.class, otherTodo.getId()));
 	}
 
 	@Test

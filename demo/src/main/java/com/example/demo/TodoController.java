@@ -4,6 +4,7 @@ import com.example.demo.service.TodoService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -47,6 +48,12 @@ public class TodoController {
 		todo.setTitle(title);
 		todo.setCompleted(false);
 		todoService.register(todo);
+		return "redirect:/todo";
+	}
+
+	@PostMapping("/{id}/delete")
+	public String delete(@PathVariable Long id) {
+		todoService.deleteById(id);
 		return "redirect:/todo";
 	}
 }
