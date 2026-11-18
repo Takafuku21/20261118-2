@@ -1,10 +1,13 @@
 package com.example.demo;
 
 import com.example.demo.service.TodoService;
+import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,7 +30,8 @@ public class TodoController {
 	}
 
 	@GetMapping("/new")
-	public String newTodo() {
+	public String newTodo(Model model) {
+		model.addAttribute("todoForm", new TodoForm());
 		return "todo/form";
 	}
 
@@ -69,13 +73,11 @@ public class TodoController {
 
 	@PostMapping("/confirm")
 	public String confirm(
-			@RequestParam("title") String title,
-			@RequestParam("description") String description,
-			@RequestParam(name = "done", defaultValue = "false") Boolean done,
-			Model model) {
-		model.addAttribute("title", title);
-		model.addAttribute("description", description);
-		model.addAttribute("done", done);
+			@Valid @ModelAttribute("todoForm") TodoForm todoForm,
+			BindingResult bindingResult) {
+		if (bindingResult.hasErrors()) {
+			return "todo/form";
+		}
 		return "todo/confirm";
 	}
 

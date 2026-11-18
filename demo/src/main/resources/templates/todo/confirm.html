@@ -16,13 +16,14 @@
 	<form method="post" th:action="@{/todo/complete}">
 		<div class="card mb-4">
 			<div class="card-body">
+				<h2 class="h5 card-title">作成者</h2>
+				<p class="card-text" th:text="${todoForm.author}"></p>
 				<label for="title" class="form-label fw-bold">タイトル</label>
-				<input type="text" class="form-control mb-3" id="title" th:value="${title}" readonly>
-				<input type="hidden" name="title" th:value="${title}">
-				<h2 class="h5 card-title">説明</h2>
-				<p class="card-text" th:text="${description}"></p>
-				<h2 class="h5 card-title">完了状態</h2>
-				<p class="card-text mb-0" th:text="${done} ? '完了' : '未完了'"></p>
+				<input type="text" class="form-control mb-3" id="title"
+					   th:value="${todoForm.title}" readonly>
+				<input type="hidden" name="title" th:value="${todoForm.title}">
+				<h2 class="h5 card-title">詳細</h2>
+				<p class="card-text mb-0" th:text="${todoForm.detail}"></p>
 			</div>
 		</div>
 

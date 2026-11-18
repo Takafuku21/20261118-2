@@ -253,10 +253,9 @@ class DemoApplicationTests {
 	void todoNewPageDisplaysTitleInputAndNavigationLinks() throws Exception {
 		mockMvc.perform(get("/todo/new"))
 				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"author\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"title\"")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"description\"")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("type=\"checkbox\"")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"done\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"detail\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/todo/confirm\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo\"")));
 	}
@@ -264,14 +263,14 @@ class DemoApplicationTests {
 	@Test
 	void todoConfirmPageDisplaysSubmittedFormValues() throws Exception {
 		mockMvc.perform(post("/todo/confirm")
+						.param("author", "作成者")
 						.param("title", "サンプルタスク")
-						.param("description", "タスクの説明")
-						.param("done", "true"))
+						.param("detail", "タスクの詳細"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("登録内容の確認")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("作成者")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("サンプルタスク")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("タスクの説明")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("タスクの詳細")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/todo/complete\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"title\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("readonly")))
@@ -279,12 +278,26 @@ class DemoApplicationTests {
 	}
 
 	@Test
-	void todoConfirmPageTreatsUncheckedDoneAsFalse() throws Exception {
+	void todoConfirmPageReturnsFormWithFieldErrors() throws Exception {
 		mockMvc.perform(post("/todo/confirm")
-						.param("title", "サンプルタスク")
-						.param("description", "タスクの説明"))
+						.param("author", "")
+						.param("title", "")
+						.param("detail", "d".repeat(501)))
 				.andExpect(status().isOk())
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了")));
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("作成者を入力してください")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("タイトルを入力してください")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("詳細は500文字以内で入力してください")));
+	}
+
+	@Test
+	void todoConfirmRejectsValuesOverMaximumLengths() throws Exception {
+		mockMvc.perform(post("/todo/confirm")
+						.param("author", "a".repeat(51))
+						.param("title", "t".repeat(101))
+						.param("detail", ""))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("作成者は50文字以内で入力してください")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("タイトルは100文字以内で入力してください")));
 	}
 
 	@Test
