@@ -55,6 +55,19 @@ class DemoApplicationTests {
 	}
 
 	@Test
+	void todoListShowsEmptyStateWhenThereAreNoTodos() throws Exception {
+		jdbcTemplate.update("DELETE FROM todos");
+
+		mockMvc.perform(get("/todo"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("ToDoがまだ登録されていません")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("新規作成ボタンから")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.not(
+						org.hamcrest.Matchers.containsString("<table"))));
+	}
+
+	@Test
 	void helloPageDisplaysControllerMessage() throws Exception {
 		mockMvc.perform(get("/hello"))
 				.andExpect(status().isOk())
@@ -83,6 +96,8 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了一覧テスト")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了")))
+				.andExpect(content().string(org.hamcrest.Matchers.not(
+						org.hamcrest.Matchers.containsString("ToDoがまだ登録されていません"))))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
 	}
 

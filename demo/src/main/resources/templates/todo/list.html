@@ -16,7 +16,15 @@
 		<a class="btn btn-primary" href="/todo/new">新規登録</a>
 	</div>
 
-	<table class="table table-striped table-bordered">
+	<section th:if="${#lists.isEmpty(todos)}" class="card border-0 shadow-sm bg-light text-center py-5 px-3">
+		<div class="card-body">
+			<h2 class="h4 card-title mb-3">ToDoがまだ登録されていません</h2>
+			<p class="card-text text-muted mb-4">新規作成ボタンから、最初のToDoを登録しましょう。</p>
+			<a class="btn btn-primary" href="/todo/new">新規作成</a>
+		</div>
+	</section>
+
+	<table th:unless="${#lists.isEmpty(todos)}" class="table table-striped table-bordered">
 		<thead class="table-light">
 		<tr>
 			<th scope="col">ID</th>
@@ -29,9 +37,6 @@
 			<td th:text="${todo.id}"></td>
 			<td th:text="${todo.title}"></td>
 			<td th:text="${todo.completed} ? '完了' : '未完了'"></td>
-		</tr>
-		<tr th:if="${#lists.isEmpty(todos)}">
-			<td colspan="3" class="text-center text-muted">登録済みのToDoはありません。</td>
 		</tr>
 		</tbody>
 	</table>
