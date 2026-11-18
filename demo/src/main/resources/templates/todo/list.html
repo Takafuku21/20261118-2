@@ -19,15 +19,19 @@
 	<table class="table table-striped table-bordered">
 		<thead class="table-light">
 		<tr>
-			<th scope="col">ToDo</th>
+			<th scope="col">ID</th>
+			<th scope="col">タイトル</th>
+			<th scope="col">完了状態</th>
 		</tr>
 		</thead>
 		<tbody>
 		<tr th:each="todo : ${todos}">
+			<td th:text="${todo.id}"></td>
 			<td th:text="${todo.title}"></td>
+			<td th:text="${todo.completed} ? '完了' : '未完了'"></td>
 		</tr>
 		<tr th:if="${#lists.isEmpty(todos)}">
-			<td class="text-center text-muted">登録済みのToDoはありません。</td>
+			<td colspan="3" class="text-center text-muted">登録済みのToDoはありません。</td>
 		</tr>
 		</tbody>
 	</table>

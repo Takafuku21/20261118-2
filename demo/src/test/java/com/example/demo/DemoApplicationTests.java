@@ -62,15 +62,27 @@ class DemoApplicationTests {
 	}
 
 	@Test
-	void todoListPageDisplaysTodosFromDatabase() throws Exception {
-		Todo todo = new Todo();
-		todo.setTitle("一覧表示テスト");
-		todo.setCompleted(false);
-		todoMapper.insert(todo);
+	void todoListPageDisplaysDatabaseTodosAndCompletionStatus() throws Exception {
+		Todo incompleteTodo = new Todo();
+		incompleteTodo.setTitle("未完了一覧テスト");
+		incompleteTodo.setCompleted(false);
+		todoMapper.insert(incompleteTodo);
+
+		Todo completedTodo = new Todo();
+		completedTodo.setTitle("完了一覧テスト");
+		completedTodo.setCompleted(true);
+		todoMapper.insert(completedTodo);
 
 		mockMvc.perform(get("/todo"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("一覧表示テスト")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("ID")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("タイトル")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了状態")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(incompleteTodo.getId().toString())))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了一覧テスト")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了一覧テスト")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
 	}
 
