@@ -16,6 +16,11 @@
 		<a class="btn btn-primary" href="/todo/new">新規登録</a>
 	</div>
 
+	<div th:if="${successMessage}" class="alert alert-success fade show auto-dismiss-alert" role="status"
+		 th:text="${successMessage}"></div>
+	<div th:if="${errorMessage}" class="alert alert-danger fade show auto-dismiss-alert" role="alert"
+		 th:text="${errorMessage}"></div>
+
 	<section th:if="${#lists.isEmpty(todos)}" class="card border-0 shadow-sm bg-light text-center py-5 px-3">
 		<div class="card-body">
 			<h2 class="h4 card-title mb-3">ToDoがまだ登録されていません</h2>
@@ -48,5 +53,13 @@
 		</tbody>
 	</table>
 </main>
+<script>
+	document.querySelectorAll(".auto-dismiss-alert").forEach((alert) => {
+		setTimeout(() => {
+			alert.classList.remove("show");
+			setTimeout(() => alert.remove(), 150);
+		}, 3000);
+	});
+</script>
 </body>
 </html>

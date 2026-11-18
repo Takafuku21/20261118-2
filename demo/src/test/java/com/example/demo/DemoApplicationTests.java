@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -133,12 +134,35 @@ class DemoApplicationTests {
 
 		mockMvc.perform(post("/todo/{id}/delete", todoToDelete.getId()))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("/todo"));
+				.andExpect(redirectedUrl("/todo"))
+				.andExpect(flash().attribute("successMessage", "ToDoを削除しました"));
 
 		assertEquals(0, jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM todos WHERE id = ?", Integer.class, todoToDelete.getId()));
 		assertEquals(1, jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM todos WHERE id = ?", Integer.class, otherTodo.getId()));
+	}
+
+	@Test
+	void deletingMissingTodoShowsErrorFlashMessage() throws Exception {
+		mockMvc.perform(post("/todo/{id}/delete", Long.MAX_VALUE))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/todo"))
+				.andExpect(flash().attribute("errorMessage", "削除に失敗しました"));
+	}
+
+	@Test
+	void todoListDisplaysFlashMessagesWithAutoDismiss() throws Exception {
+		mockMvc.perform(get("/todo").flashAttr("successMessage", "ToDoを削除しました"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("alert-success")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("ToDoを削除しました")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("setTimeout")));
+
+		mockMvc.perform(get("/todo").flashAttr("errorMessage", "削除に失敗しました"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("alert-danger")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("削除に失敗しました")));
 	}
 
 	@Test
