@@ -28,4 +28,12 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("Hello! Spring Boot")));
 	}
 
+	@Test
+	void todoListPageDisplaysTableAndNewTodoLink() throws Exception {
+		mockMvc.perform(get("/todo"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("登録済みのToDoはありません。")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
+	}
+
 }
