@@ -128,6 +128,12 @@ class DemoApplicationTests {
 						"/todo/" + incompleteTodo.getId() + "/edit")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("btn-outline-primary btn-sm")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"/todo/" + incompleteTodo.getId() + "/toggle")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了にする")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了に戻す")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"text-decoration-line-through text-muted")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"/todo/" + incompleteTodo.getId() + "/delete")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("btn-danger btn-sm")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
@@ -178,6 +184,24 @@ class DemoApplicationTests {
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/todo"))
 				.andExpect(flash().attribute("errorMessage", "更新に失敗しました"));
+	}
+
+	@Test
+	void togglingTodoCompletionFlipsStateAndRedirectsToList() throws Exception {
+		Todo todo = new Todo();
+		todo.setTitle("完了状態切替テスト");
+		todo.setCompleted(false);
+		todoMapper.insert(todo);
+
+		mockMvc.perform(post("/todo/{id}/toggle", todo.getId()))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/todo"));
+		assertTrue(todoMapper.findById(todo.getId()).getCompleted());
+
+		mockMvc.perform(post("/todo/{id}/toggle", todo.getId()))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/todo"));
+		assertEquals(false, todoMapper.findById(todo.getId()).getCompleted());
 	}
 
 	@Test
