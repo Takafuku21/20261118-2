@@ -60,8 +60,10 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("サンプルタスク")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("タスクの説明")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/complete\"")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/todo/complete\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"title\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("readonly")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("history.back()")));
 	}
 
 	@Test
@@ -74,10 +76,11 @@ class DemoApplicationTests {
 	}
 
 	@Test
-	void todoCompletePageDisplaysSuccessMessageAndListLink() throws Exception {
-		mockMvc.perform(get("/todo/complete"))
+	void todoCompletePageDisplaysSuccessMessageTitleAndListLink() throws Exception {
+		mockMvc.perform(post("/todo/complete").param("title", "サンプルタスク"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("登録が完了しました")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("サンプルタスク")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo\"")));
 	}
 

@@ -13,21 +13,24 @@
 <main class="container py-5">
 	<h1 class="h2 mb-4">登録内容の確認</h1>
 
-	<div class="card mb-4">
-		<div class="card-body">
-			<h2 class="h5 card-title">タイトル</h2>
-			<p class="card-text" th:text="${title}"></p>
-			<h2 class="h5 card-title">説明</h2>
-			<p class="card-text" th:text="${description}"></p>
-			<h2 class="h5 card-title">完了状態</h2>
-			<p class="card-text mb-0" th:text="${done} ? '完了' : '未完了'"></p>
+	<form method="post" th:action="@{/todo/complete}">
+		<div class="card mb-4">
+			<div class="card-body">
+				<label for="title" class="form-label fw-bold">タイトル</label>
+				<input type="text" class="form-control mb-3" id="title" th:value="${title}" readonly>
+				<input type="hidden" name="title" th:value="${title}">
+				<h2 class="h5 card-title">説明</h2>
+				<p class="card-text" th:text="${description}"></p>
+				<h2 class="h5 card-title">完了状態</h2>
+				<p class="card-text mb-0" th:text="${done} ? '完了' : '未完了'"></p>
+			</div>
 		</div>
-	</div>
 
-	<div class="d-flex gap-2">
-		<a class="btn btn-primary" href="/todo/complete">登録</a>
-		<a class="btn btn-outline-secondary" href="/todo/new">戻る</a>
-	</div>
+		<div class="d-flex gap-2">
+			<button class="btn btn-primary" type="submit">登録</button>
+			<button class="btn btn-outline-secondary" type="button" onclick="history.back()">戻る</button>
+		</div>
+	</form>
 </main>
 </body>
 </html>
