@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,17 +41,24 @@ class DemoApplicationTests {
 	void todoNewPageDisplaysTitleInputAndNavigationLinks() throws Exception {
 		mockMvc.perform(get("/todo/new"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("type=\"text\"")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/confirm\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"title\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"description\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"done\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/todo/confirm\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo\"")));
 	}
 
 	@Test
-	void todoConfirmPageDisplaysSampleTitleAndNavigationLinks() throws Exception {
-		mockMvc.perform(get("/todo/confirm"))
+	void todoConfirmPageDisplaysSubmittedFormValues() throws Exception {
+		mockMvc.perform(post("/todo/confirm")
+						.param("title", "サンプルタスク")
+						.param("description", "タスクの説明")
+						.param("done", "true"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("登録内容の確認")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("サンプルタスク")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("タスクの説明")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/complete\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
 	}

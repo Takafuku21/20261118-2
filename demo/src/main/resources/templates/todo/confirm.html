@@ -16,7 +16,11 @@
 	<div class="card mb-4">
 		<div class="card-body">
 			<h2 class="h5 card-title">タイトル</h2>
-			<p class="card-text mb-0">サンプルタスク</p>
+			<p class="card-text" th:text="${title}"></p>
+			<h2 class="h5 card-title">説明</h2>
+			<p class="card-text" th:text="${description}"></p>
+			<h2 class="h5 card-title">完了状態</h2>
+			<p class="card-text mb-0" th:text="${done} ? '完了' : '未完了'"></p>
 		</div>
 	</div>
 
