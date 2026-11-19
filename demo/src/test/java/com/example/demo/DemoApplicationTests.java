@@ -102,6 +102,13 @@ class DemoApplicationTests {
 	}
 
 	@Test
+	void rootRedirectsToTodoList() throws Exception {
+		mockMvc.perform(get("/"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/todo"));
+	}
+
+	@Test
 	void todoListPageDisplaysDatabaseTodosAndCompletionStatus() throws Exception {
 		Todo incompleteTodo = new Todo();
 		incompleteTodo.setTitle("未完了一覧テスト");
