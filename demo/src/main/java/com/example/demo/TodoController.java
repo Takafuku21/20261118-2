@@ -1,5 +1,7 @@
 package com.example.demo;
 
+import java.time.LocalDate;
+
 import com.example.demo.service.TodoService;
 import com.example.demo.service.CategoryService;
 import jakarta.validation.Valid;
@@ -46,7 +48,7 @@ public class TodoController {
 			normalizedKeyword = null;
 		}
 		String normalizedSort = switch (sort) {
-			case "title", "completed", "priority" -> sort;
+			case "title", "completed", "priority", "deadline" -> sort;
 			default -> "createdAt";
 		};
 		String normalizedDirection = "asc".equalsIgnoreCase(direction) ? "asc" : "desc";
@@ -73,6 +75,8 @@ public class TodoController {
 				"completed".equals(normalizedSort) && "asc".equals(normalizedDirection) ? "desc" : "asc");
 		model.addAttribute("nextPriorityDirection",
 				"priority".equals(normalizedSort) && "asc".equals(normalizedDirection) ? "desc" : "asc");
+		model.addAttribute("nextDeadlineDirection",
+				"deadline".equals(normalizedSort) && "asc".equals(normalizedDirection) ? "desc" : "asc");
 		return "todo/list";
 	}
 
@@ -101,6 +105,7 @@ public class TodoController {
 			@RequestParam(name = "completed", defaultValue = "false") Boolean completed,
 			@RequestParam(name = "priority", defaultValue = "MEDIUM") Priority priority,
 			@RequestParam(required = false) Long categoryId,
+			@RequestParam(required = false) LocalDate deadline,
 			RedirectAttributes redirectAttributes) {
 		Category category = categoryId == null ? null : categoryService.findById(categoryId);
 		if (categoryId != null && category == null) {
@@ -113,6 +118,7 @@ public class TodoController {
 		todo.setCompleted(completed);
 		todo.setPriority(priority);
 		todo.setCategory(category);
+		todo.setDeadline(deadline);
 		if (todoService.update(todo)) {
 			redirectAttributes.addFlashAttribute("successMessage", "更新が完了しました");
 		} else {
@@ -153,6 +159,7 @@ public class TodoController {
 			@RequestParam("title") String title,
 			@RequestParam(name = "priority", defaultValue = "MEDIUM") Priority priority,
 			@RequestParam(required = false) Long categoryId,
+			@RequestParam(required = false) LocalDate deadline,
 			RedirectAttributes redirectAttributes) {
 		Category category = categoryId == null ? null : categoryService.findById(categoryId);
 		if (categoryId != null && category == null) {
@@ -164,6 +171,7 @@ public class TodoController {
 		todo.setCompleted(false);
 		todo.setPriority(priority);
 		todo.setCategory(category);
+		todo.setDeadline(deadline);
 		todoService.register(todo);
 		return "redirect:/todo";
 	}

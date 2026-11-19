@@ -8,6 +8,7 @@
 		<result property="title" column="title"/>
 		<result property="completed" column="completed"/>
 		<result property="createdAt" column="created_at"/>
+		<result property="deadline" column="deadline"/>
 		<result property="priority" column="priority"/>
 		<association property="category" javaType="com.example.demo.Category"
 						 notNullColumn="category_id">
@@ -18,7 +19,7 @@
 	</resultMap>
 
 	<sql id="todoSelectColumns">
-		t.id, t.title, t.completed, t.created_at, t.priority,
+		t.id, t.title, t.completed, t.created_at, t.priority, t.deadline,
 		c.id AS category_id, c.name AS category_name, c.color AS category_color
 	</sql>
 
@@ -35,6 +36,7 @@
 					ELSE 2
 				END
 			</when>
+			<when test="sort == 'deadline'">t.deadline</when>
 			<otherwise>t.created_at</otherwise>
 		</choose>
 		<choose>
@@ -96,8 +98,8 @@
 
 	<insert id="insert" parameterType="com.example.demo.Todo"
 			useGeneratedKeys="true" keyProperty="id">
-		INSERT INTO todos (title, completed, priority, category_id)
-		VALUES (#{title}, #{completed}, #{priority}, #{category.id})
+		INSERT INTO todos (title, completed, priority, category_id, deadline)
+		VALUES (#{title}, #{completed}, #{priority}, #{category.id}, #{deadline})
 	</insert>
 
 	<delete id="deleteById" parameterType="long">
@@ -110,7 +112,8 @@
 		SET title = #{title},
 			completed = #{completed},
 			priority = #{priority},
-			category_id = #{category.id}
+			category_id = #{category.id},
+			deadline = #{deadline}
 		WHERE id = #{id}
 	</update>
 </mapper>

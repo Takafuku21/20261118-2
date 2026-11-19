@@ -35,6 +35,11 @@
 						th:selected="${todo.category != null and category.id == todo.category.id}"></option>
 			</select>
 		</div>
+		<div class="mb-3">
+			<label for="deadline" class="form-label">期限日</label>
+			<input type="date" class="form-control" id="deadline" name="deadline"
+				   th:value="${todo.deadline != null ? #temporals.format(todo.deadline, 'yyyy-MM-dd') : ''}">
+		</div>
 		<div class="form-check mb-4">
 			<input class="form-check-input" type="checkbox" id="completed" name="completed"
 				   value="true" th:checked="${todo.completed}">

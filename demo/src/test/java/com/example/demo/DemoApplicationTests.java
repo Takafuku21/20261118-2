@@ -1,6 +1,7 @@
 package com.example.demo;
 
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -190,6 +191,30 @@ class DemoApplicationTests {
 	}
 
 	@Test
+	void todoMapperSortsByDeadline() {
+		Todo laterTodo = new Todo();
+		laterTodo.setTitle("期限遅い");
+		laterTodo.setDeadline(LocalDate.now().plusDays(2));
+		todoMapper.insert(laterTodo);
+
+		Todo soonerTodo = new Todo();
+		soonerTodo.setTitle("期限早い");
+		soonerTodo.setDeadline(LocalDate.now().plusDays(1));
+		todoMapper.insert(soonerTodo);
+
+		List<Long> targetIds = List.of(soonerTodo.getId(), laterTodo.getId());
+		assertEquals(targetIds, todoMapper.findAll("deadline", "asc").stream()
+				.filter(todo -> targetIds.contains(todo.getId()))
+				.map(Todo::getId)
+				.toList());
+		assertEquals(List.of(laterTodo.getId(), soonerTodo.getId()),
+				todoMapper.findAll("deadline", "desc").stream()
+						.filter(todo -> targetIds.contains(todo.getId()))
+						.map(Todo::getId)
+						.toList());
+	}
+
+	@Test
 	void isCompletedReflectsCompletionFlag() {
 		Todo todo = new Todo();
 
@@ -198,6 +223,30 @@ class DemoApplicationTests {
 		assertTrue(todo.isCompleted());
 		todo.setCompleted(false);
 		assertFalse(todo.isCompleted());
+	}
+
+	@Test
+	void deadlineWarningsDistinguishOverdueAndUpcomingDates() {
+		Todo todo = new Todo();
+
+		assertFalse(todo.isOverdue());
+		assertFalse(todo.isNearDeadline());
+
+		todo.setDeadline(LocalDate.now().minusDays(1));
+		assertTrue(todo.isOverdue());
+		assertFalse(todo.isNearDeadline());
+
+		todo.setDeadline(LocalDate.now());
+		assertFalse(todo.isOverdue());
+		assertTrue(todo.isNearDeadline());
+
+		todo.setDeadline(LocalDate.now().plusDays(3));
+		assertFalse(todo.isOverdue());
+		assertTrue(todo.isNearDeadline());
+
+		todo.setDeadline(LocalDate.now().plusDays(4));
+		assertFalse(todo.isOverdue());
+		assertFalse(todo.isNearDeadline());
 	}
 
 	@Test
@@ -244,7 +293,13 @@ class DemoApplicationTests {
 		Todo incompleteTodo = new Todo();
 		incompleteTodo.setTitle("未完了一覧テスト");
 		incompleteTodo.setCompleted(false);
+		incompleteTodo.setDeadline(LocalDate.now().minusDays(1));
 		todoMapper.insert(incompleteTodo);
+
+		Todo nearDeadlineTodo = new Todo();
+		nearDeadlineTodo.setTitle("期限間近一覧テスト");
+		nearDeadlineTodo.setDeadline(LocalDate.now().plusDays(2));
+		todoMapper.insert(nearDeadlineTodo);
 
 		Todo completedTodo = new Todo();
 		completedTodo.setTitle("完了一覧テスト");
@@ -259,10 +314,17 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("タイトル")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("ステータス")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("作成日")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("期限日")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("カテゴリ")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(incompleteTodo.getId().toString())))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了一覧テスト")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了一覧テスト")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("期限間近一覧テスト")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("overdue-row")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("warning-row")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						LocalDate.now().minusDays(1).format(
+								java.time.format.DateTimeFormatter.ofPattern("yyyy年MM月dd日")))))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"class=\"badge bg-danger\">高</span>")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
@@ -321,6 +383,7 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("keyword=needle")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=completed")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=priority")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=deadline")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("direction=asc")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=title&amp;direction=desc")));
 	}
@@ -431,6 +494,7 @@ class DemoApplicationTests {
 		todo.setTitle("編集前タイトル");
 		todo.setCompleted(false);
 		todo.setCategory(categoryMapper.findAll().get(0));
+		todo.setDeadline(LocalDate.of(2026, 12, 1));
 		todoMapper.insert(todo);
 
 		mockMvc.perform(get("/todo/{id}/edit", todo.getId()))
@@ -440,6 +504,8 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("selected")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"categoryId\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("仕事")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"value=\"2026-12-01\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"completed\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"action=\"/todo/" + todo.getId() + "/update\"")));
@@ -457,7 +523,8 @@ class DemoApplicationTests {
 						.param("title", "更新後タイトル")
 						.param("completed", "true")
 						.param("priority", "HIGH")
-						.param("categoryId", category.getId().toString()))
+						.param("categoryId", category.getId().toString())
+						.param("deadline", "2026-12-31"))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/todo"))
 				.andExpect(flash().attribute("successMessage", "更新が完了しました"));
@@ -467,6 +534,7 @@ class DemoApplicationTests {
 		assertEquals(true, updatedTodo.getCompleted());
 		assertEquals(Priority.HIGH, updatedTodo.getPriority());
 		assertEquals(category.getId(), updatedTodo.getCategory().getId());
+		assertEquals(LocalDate.of(2026, 12, 31), updatedTodo.getDeadline());
 	}
 
 	@Test
@@ -550,6 +618,8 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"title\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"priority\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"categoryId\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"deadline\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("type=\"date\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"HIGH\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("高")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("中")))
@@ -568,6 +638,7 @@ class DemoApplicationTests {
 						.param("title", "サンプルタスク")
 						.param("priority", "HIGH")
 						.param("categoryId", category.getId().toString())
+						.param("deadline", "2026-12-24")
 						.param("detail", "タスクの詳細"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("登録内容の確認")))
@@ -580,6 +651,9 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(">仕事</p>")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"name=\"categoryId\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("2026年12月24日")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"name=\"deadline\" value=\"2026-12-24\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("タスクの詳細")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/todo/complete\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"title\"")))
@@ -611,13 +685,14 @@ class DemoApplicationTests {
 	}
 
 	@Test
-	void todoCompleteRegistersTodoWithPriorityAndRedirectsToList() throws Exception {
+	void todoCompleteRegistersTodoWithPriorityCategoryAndDeadline() throws Exception {
 		String title = "登録テスト";
 		Category category = categoryMapper.findAll().get(0);
 		mockMvc.perform(post("/todo/complete")
 						.param("title", title)
 						.param("priority", "LOW")
-						.param("categoryId", category.getId().toString()))
+						.param("categoryId", category.getId().toString())
+						.param("deadline", "2026-12-25"))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/todo"));
 
@@ -627,6 +702,11 @@ class DemoApplicationTests {
 				"SELECT priority FROM todos WHERE title = ?", String.class, title));
 		assertEquals(category.getId(), jdbcTemplate.queryForObject(
 				"SELECT category_id FROM todos WHERE title = ?", Long.class, title));
+		assertEquals(LocalDate.of(2026, 12, 25), todoMapper.findAll("title", "asc").stream()
+				.filter(todo -> todo.getTitle().equals(title))
+				.findFirst()
+				.orElseThrow()
+				.getDeadline());
 	}
 
 }

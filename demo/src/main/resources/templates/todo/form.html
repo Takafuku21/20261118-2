@@ -42,6 +42,10 @@
 				 th:errors="*{categoryId}"></div>
 		</div>
 		<div class="mb-3">
+			<label for="deadline" class="form-label">期限日</label>
+			<input type="date" class="form-control" id="deadline" th:field="*{deadline}">
+		</div>
+		<div class="mb-3">
 			<label for="detail" class="form-label">詳細</label>
 			<textarea class="form-control" id="detail" rows="3" th:field="*{detail}"></textarea>
 			<div class="text-danger" th:if="${#fields.hasErrors('detail')}" th:errors="*{detail}"></div>

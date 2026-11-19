@@ -1,5 +1,7 @@
 package com.example.demo;
 
+import java.time.LocalDate;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -20,4 +22,5 @@ public class TodoForm {
 
 	private Priority priority = Priority.MEDIUM;
 	private Long categoryId;
+	private LocalDate deadline;
 }

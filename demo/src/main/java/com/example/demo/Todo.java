@@ -1,5 +1,6 @@
 package com.example.demo;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import lombok.Data;
@@ -11,6 +12,7 @@ public class Todo {
 	private String title;
 	private boolean completed;
 	private LocalDateTime createdAt;
+	private LocalDate deadline;
 	private Priority priority = Priority.MEDIUM;
 	private Category category;
 
@@ -20,5 +22,15 @@ public class Todo {
 
 	public boolean getCompleted() {
 		return completed;
+	}
+
+	public boolean isOverdue() {
+		return deadline != null && deadline.isBefore(LocalDate.now());
+	}
+
+	public boolean isNearDeadline() {
+		return deadline != null
+				&& !isOverdue()
+				&& !deadline.isAfter(LocalDate.now().plusDays(3));
 	}
 }

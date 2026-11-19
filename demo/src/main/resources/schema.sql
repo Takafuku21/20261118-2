@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS todos (
     completed BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     priority VARCHAR(10) NOT NULL DEFAULT 'MEDIUM',
+    deadline DATE,
     category_id BIGINT,
     CONSTRAINT fk_todos_category FOREIGN KEY (category_id) REFERENCES categories(id)
 );
@@ -34,3 +35,6 @@ ALTER TABLE todos
 
 ALTER TABLE todos
     ADD COLUMN IF NOT EXISTS category_id BIGINT REFERENCES categories(id);
+
+ALTER TABLE todos
+    ADD COLUMN IF NOT EXISTS deadline DATE;

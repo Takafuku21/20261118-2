@@ -13,6 +13,14 @@
 			background-color: #e9ecef !important;
 			color: #6c757d;
 		}
+		.overdue-row > * {
+			background-color: #f8d7da !important;
+			color: #842029;
+		}
+		.warning-row > * {
+			background-color: #fff3cd !important;
+			color: #664d03;
+		}
 		#delete-confirmation {
 			border: 0;
 			border-radius: 0.5rem;
@@ -112,12 +120,19 @@
 						  aria-hidden="true"></span>
 				</a>
 			</th>
+			<th scope="col">
+				<a th:href="@{/todo(page=0,keyword=${keyword},categoryId=${categoryId},sort='deadline',direction=${nextDeadlineDirection})}">
+					期限日
+					<span th:if="${sort == 'deadline'}" th:text="${direction == 'asc' ? '▲' : '▼'}"
+						  aria-hidden="true"></span>
+				</a>
+			</th>
 			<th scope="col">操作</th>
 		</tr>
 		</thead>
 		<tbody>
 		<tr th:each="todo : ${todos}"
-			th:classappend="${todo.completed} ? 'completed-row' : ''">
+			th:classappend="${todo.completed ? (todo.overdue ? 'completed-row overdue-row' : (todo.nearDeadline ? 'completed-row warning-row' : 'completed-row')) : (todo.overdue ? 'overdue-row' : (todo.nearDeadline ? 'warning-row' : ''))}">
 			<td th:text="${todo.id}"></td>
 			<td>
 				<span th:text="${todo.title}"
@@ -138,6 +153,9 @@
 				<span th:unless="${todo.category != null}" class="text-muted">なし</span>
 			</td>
 			<td th:text="${todo.createdAt}"></td>
+			<td th:if="${todo.deadline != null}"
+				th:text="${#temporals.format(todo.deadline, 'yyyy年MM月dd日')}"></td>
+			<td th:unless="${todo.deadline != null}" class="text-muted">未設定</td>
 			<td>
 				<div class="d-flex gap-2">
 					<a class="btn btn-outline-primary btn-sm"
