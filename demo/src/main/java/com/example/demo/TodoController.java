@@ -2,6 +2,10 @@ package com.example.demo;
 
 import com.example.demo.service.TodoService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -18,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 @RequestMapping("/todo")
 public class TodoController {
 
+	private static final int PAGE_SIZE = 10;
+
 	private final TodoService todoService;
 
 	public TodoController(TodoService todoService) {
@@ -29,6 +35,7 @@ public class TodoController {
 			@RequestParam(required = false) String keyword,
 			@RequestParam(required = false, defaultValue = "createdAt") String sort,
 			@RequestParam(required = false, defaultValue = "desc") String direction,
+			@PageableDefault(size = PAGE_SIZE) Pageable pageable,
 			Model model) {
 		String normalizedKeyword = keyword == null ? null : keyword.trim();
 		if (normalizedKeyword != null && normalizedKeyword.isEmpty()) {
@@ -39,9 +46,18 @@ public class TodoController {
 			default -> "createdAt";
 		};
 		String normalizedDirection = "asc".equalsIgnoreCase(direction) ? "asc" : "desc";
-		model.addAttribute("todos", normalizedKeyword == null
-				? todoService.findAll(normalizedSort, normalizedDirection)
-				: todoService.searchByTitle(normalizedKeyword, normalizedSort, normalizedDirection));
+		Pageable fixedPageable = PageRequest.of(pageable.getPageNumber(), PAGE_SIZE);
+		Page<Todo> todoPage = normalizedKeyword == null
+				? todoService.findAll(fixedPageable, normalizedSort, normalizedDirection)
+				: todoService.searchByTitle(
+						normalizedKeyword, fixedPageable, normalizedSort, normalizedDirection);
+		model.addAttribute("todos", todoPage.getContent());
+		model.addAttribute("page", todoPage);
+		model.addAttribute("startItem", todoPage.isEmpty()
+				? 0
+				: (long) todoPage.getNumber() * todoPage.getSize() + 1);
+		model.addAttribute("endItem", Math.min(todoPage.getTotalElements(),
+				(todoPage.getNumber() + 1L) * todoPage.getSize()));
 		model.addAttribute("keyword", normalizedKeyword);
 		model.addAttribute("sort", normalizedSort);
 		model.addAttribute("direction", normalizedDirection);

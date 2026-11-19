@@ -23,11 +23,36 @@
 		<include refid="todoOrderBy"/>
 	</select>
 
+	<select id="findPage" resultType="com.example.demo.Todo">
+		SELECT id, title, completed, created_at
+		FROM todos
+		<include refid="todoOrderBy"/>
+		LIMIT #{limit} OFFSET #{offset}
+	</select>
+
+	<select id="countAll" resultType="long">
+		SELECT COUNT(*) FROM todos
+	</select>
+
 	<select id="searchByTitle" resultType="com.example.demo.Todo">
 		SELECT id, title, completed, created_at
 		FROM todos
 		WHERE title LIKE CONCAT('%', #{keyword}, '%')
 		<include refid="todoOrderBy"/>
+	</select>
+
+	<select id="searchPageByTitle" resultType="com.example.demo.Todo">
+		SELECT id, title, completed, created_at
+		FROM todos
+		WHERE title LIKE CONCAT('%', #{keyword}, '%')
+		<include refid="todoOrderBy"/>
+		LIMIT #{limit} OFFSET #{offset}
+	</select>
+
+	<select id="countByTitle" resultType="long">
+		SELECT COUNT(*)
+		FROM todos
+		WHERE title LIKE CONCAT('%', #{keyword}, '%')
 	</select>
 
 	<select id="findById" parameterType="long" resultType="com.example.demo.Todo">

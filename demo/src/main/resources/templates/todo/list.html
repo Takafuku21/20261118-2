@@ -39,6 +39,7 @@
 		 th:text="${errorMessage}"></div>
 
 	<form method="get" action="/todo" class="row g-2 align-items-center mb-3">
+		<input type="hidden" name="page" value="0">
 		<input type="hidden" name="sort" th:value="${sort}">
 		<input type="hidden" name="direction" th:value="${direction}">
 		<div class="col-sm-8 col-md-6">
@@ -51,12 +52,13 @@
 		</div>
 		<div class="col-auto" th:if="${keyword != null}">
 			<a class="btn btn-outline-secondary"
-			   th:href="@{/todo(sort=${sort},direction=${direction})}">クリア</a>
+			   th:href="@{/todo(page=0,sort=${sort},direction=${direction})}">クリア</a>
 		</div>
 	</form>
 	<p class="text-muted mb-3">
-		<span th:text="${keyword != null} ? '検索結果' : '表示件数'">表示件数</span>:
-		<span th:text="${#lists.size(todos)}">0</span>件
+		<span th:if="${keyword != null}">検索結果: </span>
+		全<span th:text="${page.totalElements}">0</span>件中
+		<span th:text="${startItem}">0</span>-<span th:text="${endItem}">0</span>件を表示
 	</p>
 
 	<section th:if="${#lists.isEmpty(todos)}" class="card border-0 shadow-sm bg-light text-center py-5 px-3">
@@ -73,21 +75,21 @@
 		<tr>
 			<th scope="col">ID</th>
 			<th scope="col">
-				<a th:href="@{/todo(keyword=${keyword},sort='title',direction=${nextTitleDirection})}">
+				<a th:href="@{/todo(page=0,keyword=${keyword},sort='title',direction=${nextTitleDirection})}">
 					タイトル
 					<span th:if="${sort == 'title'}" th:text="${direction == 'asc' ? '▲' : '▼'}"
 						  aria-hidden="true"></span>
 				</a>
 			</th>
 			<th scope="col">
-				<a th:href="@{/todo(keyword=${keyword},sort='completed',direction=${nextCompletedDirection})}">
+				<a th:href="@{/todo(page=0,keyword=${keyword},sort='completed',direction=${nextCompletedDirection})}">
 					ステータス
 					<span th:if="${sort == 'completed'}" th:text="${direction == 'asc' ? '▲' : '▼'}"
 						  aria-hidden="true"></span>
 				</a>
 			</th>
 			<th scope="col">
-				<a th:href="@{/todo(keyword=${keyword},sort='createdAt',direction=${nextCreatedAtDirection})}">
+				<a th:href="@{/todo(page=0,keyword=${keyword},sort='createdAt',direction=${nextCreatedAtDirection})}">
 					作成日
 					<span th:if="${sort == 'createdAt'}" th:text="${direction == 'asc' ? '▲' : '▼'}"
 						  aria-hidden="true"></span>
@@ -127,6 +129,29 @@
 		</tr>
 		</tbody>
 	</table>
+
+	<nav th:if="${page.totalPages > 1}" aria-label="ページ送り" class="mt-4">
+		<ul class="pagination justify-content-center">
+			<li class="page-item" th:classappend="${page.first} ? 'disabled' : ''">
+				<a th:if="${page.hasPrevious()}" class="page-link"
+				   th:href="@{/todo(page=${page.number - 1},keyword=${keyword},sort=${sort},direction=${direction})}">前へ</a>
+				<span th:unless="${page.hasPrevious()}" class="page-link">前へ</span>
+			</li>
+			<li th:each="pageNumber : ${#numbers.sequence(0, page.totalPages - 1)}"
+				class="page-item" th:classappend="${pageNumber == page.number} ? 'active' : ''">
+				<span th:if="${pageNumber == page.number}" class="page-link" aria-current="page"
+					  th:text="${pageNumber + 1}">1</span>
+				<a th:unless="${pageNumber == page.number}" class="page-link"
+				   th:href="@{/todo(page=${pageNumber},keyword=${keyword},sort=${sort},direction=${direction})}"
+				   th:text="${pageNumber + 1}">1</a>
+			</li>
+			<li class="page-item" th:classappend="${page.last} ? 'disabled' : ''">
+				<a th:if="${page.hasNext()}" class="page-link"
+				   th:href="@{/todo(page=${page.number + 1},keyword=${keyword},sort=${sort},direction=${direction})}">次へ</a>
+				<span th:unless="${page.hasNext()}" class="page-link">次へ</span>
+			</li>
+		</ul>
+	</nav>
 
 	<dialog id="delete-confirmation" aria-labelledby="delete-confirmation-title"
 			aria-describedby="delete-confirmation-message">

@@ -2,6 +2,9 @@ package com.example.demo.service;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.example.demo.Todo;
@@ -20,12 +23,16 @@ public class TodoService {
 		todoMapper.insert(todo);
 	}
 
-	public List<Todo> findAll(String sort, String direction) {
-		return todoMapper.findAll(sort, direction);
+	public Page<Todo> findAll(Pageable pageable, String sort, String direction) {
+		List<Todo> todos = todoMapper.findPage(
+				sort, direction, pageable.getPageSize(), pageable.getOffset());
+		return new PageImpl<>(todos, pageable, todoMapper.countAll());
 	}
 
-	public List<Todo> searchByTitle(String keyword, String sort, String direction) {
-		return todoMapper.searchByTitle(keyword, sort, direction);
+	public Page<Todo> searchByTitle(String keyword, Pageable pageable, String sort, String direction) {
+		List<Todo> todos = todoMapper.searchPageByTitle(
+				keyword, sort, direction, pageable.getPageSize(), pageable.getOffset());
+		return new PageImpl<>(todos, pageable, todoMapper.countByTitle(keyword));
 	}
 
 	public Todo findById(Long id) {

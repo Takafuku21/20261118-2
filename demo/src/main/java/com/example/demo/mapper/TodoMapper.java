@@ -12,10 +12,27 @@ public interface TodoMapper {
 			@Param("sort") String sort,
 			@Param("direction") String direction);
 
+	List<Todo> findPage(
+			@Param("sort") String sort,
+			@Param("direction") String direction,
+			@Param("limit") int limit,
+			@Param("offset") long offset);
+
+	long countAll();
+
 	List<Todo> searchByTitle(
 			@Param("keyword") String keyword,
 			@Param("sort") String sort,
 			@Param("direction") String direction);
+
+	List<Todo> searchPageByTitle(
+			@Param("keyword") String keyword,
+			@Param("sort") String sort,
+			@Param("direction") String direction,
+			@Param("limit") int limit,
+			@Param("offset") long offset);
+
+	long countByTitle(@Param("keyword") String keyword);
 
 	Todo findById(Long id);
 

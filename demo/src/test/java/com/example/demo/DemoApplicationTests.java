@@ -275,13 +275,54 @@ class DemoApplicationTests {
 						"value=\"フォーム表示\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"検索結果")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("1</span>件")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("全<span>1</span>件中")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"1</span>-<span>1</span>件を表示")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("検索フォーム表示対象")))
 				.andExpect(content().string(org.hamcrest.Matchers.not(
 						org.hamcrest.Matchers.containsString("検索対象外タイトル"))))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
-						"href=\"/todo?sort=createdAt&amp;direction=desc\"")))
+						"href=\"/todo?page=0&amp;sort=createdAt&amp;direction=desc\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("クリア")));
+	}
+
+	@Test
+	void todoSearchResultsArePaginatedAndPreserveSearchAndSortParameters() throws Exception {
+		jdbcTemplate.update("DELETE FROM todos");
+		for (int i = 1; i <= 21; i++) {
+			Todo todo = new Todo();
+			todo.setTitle("ページング検索対象" + "%02d".formatted(i));
+			todo.setCompleted(false);
+			todoMapper.insert(todo);
+		}
+		Todo unrelatedTodo = new Todo();
+		unrelatedTodo.setTitle("ページング対象外");
+		unrelatedTodo.setCompleted(false);
+		todoMapper.insert(unrelatedTodo);
+
+		mockMvc.perform(get("/todo")
+						.param("keyword", "ページング検索対象")
+						.param("sort", "title")
+						.param("direction", "asc")
+						.param("page", "1"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("全<span>21</span>件中")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"11</span>-<span>20</span>件を表示")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("ページング検索対象11")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("ページング検索対象20")))
+				.andExpect(content().string(org.hamcrest.Matchers.not(
+						org.hamcrest.Matchers.containsString("ページング検索対象10"))))
+				.andExpect(content().string(org.hamcrest.Matchers.not(
+						org.hamcrest.Matchers.containsString("ページング対象外"))))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"class=\"page-item active\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("aria-current=\"page\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("前へ")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("次へ")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("keyword=")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=title")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("direction=asc")));
 	}
 
 	@Test
