@@ -262,6 +262,28 @@ class DemoApplicationTests {
 	}
 
 	@Test
+	void todoMapperDeletesTodosByIdsAndPreservesUnselectedTodos() {
+		Todo firstTodo = new Todo();
+		firstTodo.setTitle("一括削除Mapper対象1");
+		todoMapper.insert(firstTodo);
+
+		Todo secondTodo = new Todo();
+		secondTodo.setTitle("一括削除Mapper対象2");
+		todoMapper.insert(secondTodo);
+
+		Todo remainingTodo = new Todo();
+		remainingTodo.setTitle("一括削除Mapper対象外");
+		todoMapper.insert(remainingTodo);
+
+		assertEquals(2, todoMapper.deleteByIds(List.of(firstTodo.getId(), secondTodo.getId())));
+		assertEquals(0, jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM todos WHERE id IN (?, ?)",
+				Integer.class, firstTodo.getId(), secondTodo.getId()));
+		assertEquals(1, jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM todos WHERE id = ?", Integer.class, remainingTodo.getId()));
+	}
+
+	@Test
 	void todoListShowsEmptyStateWhenThereAreNoTodos() throws Exception {
 		jdbcTemplate.update("DELETE FROM todos");
 
@@ -315,6 +337,16 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("ステータス")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("作成日")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("期限日")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"select-all-todos\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"ids\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"form=\"bulk-delete-form\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"id=\"bulk-delete-trigger\" class=\"btn btn-danger\" disabled")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"選択した項目を削除")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"id=\"bulk-delete-confirmation\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("カテゴリ")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(incompleteTodo.getId().toString())))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了一覧テスト")))
@@ -594,6 +626,48 @@ class DemoApplicationTests {
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/todo"))
 				.andExpect(flash().attribute("errorMessage", "削除に失敗しました"));
+	}
+
+	@Test
+	void bulkDeletingSelectedTodosRemovesOnlySelectedIds() throws Exception {
+		Todo firstTodo = new Todo();
+		firstTodo.setTitle("一括削除対象1");
+		todoMapper.insert(firstTodo);
+
+		Todo secondTodo = new Todo();
+		secondTodo.setTitle("一括削除対象2");
+		todoMapper.insert(secondTodo);
+
+		Todo remainingTodo = new Todo();
+		remainingTodo.setTitle("一括削除対象外");
+		todoMapper.insert(remainingTodo);
+
+		mockMvc.perform(post("/todo/bulk-delete")
+						.param("ids", firstTodo.getId().toString(), secondTodo.getId().toString()))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/todo"))
+				.andExpect(flash().attribute("successMessage", "選択したToDoを2件削除しました"));
+
+		assertEquals(0, jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM todos WHERE id IN (?, ?)",
+				Integer.class, firstTodo.getId(), secondTodo.getId()));
+		assertEquals(1, jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM todos WHERE id = ?", Integer.class, remainingTodo.getId()));
+	}
+
+	@Test
+	void bulkDeleteWithoutSelectedIdsDoesNotDeleteTodos() throws Exception {
+		Todo todo = new Todo();
+		todo.setTitle("未選択一括削除テスト");
+		todoMapper.insert(todo);
+
+		mockMvc.perform(post("/todo/bulk-delete"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/todo"))
+				.andExpect(flash().attribute("errorMessage", "削除するToDoを選択してください"));
+
+		assertEquals(1, jdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM todos WHERE id = ?", Integer.class, todo.getId()));
 	}
 
 	@Test

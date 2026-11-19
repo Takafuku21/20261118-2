@@ -42,6 +42,13 @@ public class TodoService {
 		return todoMapper.deleteById(id) > 0;
 	}
 
+	public int deleteByIds(List<Long> ids) {
+		if (ids == null || ids.isEmpty()) {
+			return 0;
+		}
+		return todoMapper.deleteByIds(ids);
+	}
+
 	public boolean update(Todo todo) {
 		return todoMapper.update(todo) > 0;
 	}

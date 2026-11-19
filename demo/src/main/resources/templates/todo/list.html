@@ -78,6 +78,13 @@
 		<span th:text="${startItem}">0</span>-<span th:text="${endItem}">0</span>件を表示
 	</p>
 
+	<form id="bulk-delete-form" method="post" action="/todo/bulk-delete"
+		  class="mb-3" th:if="${!#lists.isEmpty(todos)}">
+		<button type="button" id="bulk-delete-trigger" class="btn btn-danger" disabled>
+			選択した項目を削除
+		</button>
+	</form>
+
 	<section th:if="${#lists.isEmpty(todos)}" class="card border-0 shadow-sm bg-light text-center py-5 px-3">
 		<div class="card-body">
 			<h2 th:if="${keyword != null}" class="h4 card-title mb-3">検索条件に一致するToDoがありません</h2>
@@ -90,6 +97,10 @@
 	<table th:unless="${#lists.isEmpty(todos)}" class="table table-striped table-bordered">
 		<thead class="table-light">
 		<tr>
+			<th scope="col">
+				<input id="select-all-todos" type="checkbox" class="form-check-input"
+					   aria-label="全選択">
+			</th>
 			<th scope="col">ID</th>
 			<th scope="col">
 				<a th:href="@{/todo(page=0,keyword=${keyword},categoryId=${categoryId},sort='title',direction=${nextTitleDirection})}">
@@ -133,6 +144,11 @@
 		<tbody>
 		<tr th:each="todo : ${todos}"
 			th:classappend="${todo.completed ? (todo.overdue ? 'completed-row overdue-row' : (todo.nearDeadline ? 'completed-row warning-row' : 'completed-row')) : (todo.overdue ? 'overdue-row' : (todo.nearDeadline ? 'warning-row' : ''))}">
+			<td>
+				<input type="checkbox" class="form-check-input todo-checkbox" name="ids"
+					   th:value="${todo.id}" form="bulk-delete-form"
+					   th:attr="aria-label=|${todo.title}を選択|">
+			</td>
 			<td th:text="${todo.id}"></td>
 			<td>
 				<span th:text="${todo.title}"
@@ -198,6 +214,18 @@
 		</ul>
 	</nav>
 
+	<dialog id="bulk-delete-confirmation" aria-labelledby="bulk-delete-title"
+			aria-describedby="bulk-delete-message">
+		<h2 id="bulk-delete-title" class="h5">一括削除の確認</h2>
+		<p id="bulk-delete-message" class="mb-4">
+			選択した<span id="bulk-delete-count"></span>件のToDoを削除しますか？
+		</p>
+		<div class="d-flex justify-content-end gap-2">
+			<button type="button" class="btn btn-outline-secondary" data-cancel-bulk-delete>キャンセル</button>
+			<button type="button" id="confirm-bulk-delete" class="btn btn-danger">削除する</button>
+		</div>
+	</dialog>
+
 	<dialog id="delete-confirmation" aria-labelledby="delete-confirmation-title"
 			aria-describedby="delete-confirmation-message">
 		<h2 id="delete-confirmation-title" class="h5">削除の確認</h2>
@@ -247,6 +275,49 @@
 	deleteDialog.addEventListener("close", () => {
 		pendingDeleteForm = null;
 	});
+
+	const bulkDeleteForm = document.getElementById("bulk-delete-form");
+	if (bulkDeleteForm) {
+		const selectAllCheckbox = document.getElementById("select-all-todos");
+		const todoCheckboxes = Array.from(document.querySelectorAll(".todo-checkbox"));
+		const bulkDeleteButton = document.getElementById("bulk-delete-trigger");
+		const bulkDeleteDialog = document.getElementById("bulk-delete-confirmation");
+		const bulkDeleteCount = document.getElementById("bulk-delete-count");
+
+		const updateBulkDeleteSelection = () => {
+			const selectedCount = todoCheckboxes.filter((checkbox) => checkbox.checked).length;
+			bulkDeleteButton.disabled = selectedCount === 0;
+			selectAllCheckbox.checked = selectedCount === todoCheckboxes.length;
+			selectAllCheckbox.indeterminate = selectedCount > 0 && selectedCount < todoCheckboxes.length;
+		};
+
+		selectAllCheckbox.addEventListener("change", () => {
+			todoCheckboxes.forEach((checkbox) => {
+				checkbox.checked = selectAllCheckbox.checked;
+			});
+			updateBulkDeleteSelection();
+		});
+		todoCheckboxes.forEach((checkbox) => {
+			checkbox.addEventListener("change", updateBulkDeleteSelection);
+		});
+
+		bulkDeleteButton.addEventListener("click", () => {
+			const selectedCount = todoCheckboxes.filter((checkbox) => checkbox.checked).length;
+			if (selectedCount === 0) {
+				return;
+			}
+			bulkDeleteCount.textContent = selectedCount;
+			bulkDeleteDialog.showModal();
+		});
+		document.querySelector("[data-cancel-bulk-delete]").addEventListener("click", () => {
+			bulkDeleteDialog.close();
+		});
+		document.getElementById("confirm-bulk-delete").addEventListener("click", () => {
+			if (todoCheckboxes.some((checkbox) => checkbox.checked)) {
+				bulkDeleteForm.requestSubmit();
+			}
+		});
+	}
 </script>
 </body>
 </html>

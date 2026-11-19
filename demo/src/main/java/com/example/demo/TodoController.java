@@ -1,6 +1,7 @@
 package com.example.demo;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import com.example.demo.service.TodoService;
 import com.example.demo.service.CategoryService;
@@ -182,6 +183,24 @@ public class TodoController {
 			redirectAttributes.addFlashAttribute("successMessage", "ToDoを削除しました");
 		} else {
 			redirectAttributes.addFlashAttribute("errorMessage", "削除に失敗しました");
+		}
+		return "redirect:/todo";
+	}
+
+	@PostMapping("/bulk-delete")
+	public String bulkDelete(
+			@RequestParam(name = "ids", required = false) List<Long> ids,
+			RedirectAttributes redirectAttributes) {
+		if (ids == null || ids.isEmpty()) {
+			redirectAttributes.addFlashAttribute("errorMessage", "削除するToDoを選択してください");
+			return "redirect:/todo";
+		}
+		int deletedCount = todoService.deleteByIds(ids);
+		if (deletedCount > 0) {
+			redirectAttributes.addFlashAttribute(
+					"successMessage", "選択したToDoを" + deletedCount + "件削除しました");
+		} else {
+			redirectAttributes.addFlashAttribute("errorMessage", "選択したToDoを削除できませんでした");
 		}
 		return "redirect:/todo";
 	}
