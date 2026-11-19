@@ -1,5 +1,9 @@
 package com.example.demo;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -50,7 +54,7 @@ class DemoApplicationTests {
 
 		assertEquals(1, todoMapper.insert(todo));
 		assertNotNull(todo.getId());
-		assertTrue(todoMapper.findAll().stream()
+		assertTrue(todoMapper.findAll("createdAt", "desc").stream()
 				.anyMatch(found -> found.getId().equals(todo.getId())
 						&& found.getTitle().equals(todo.getTitle())
 						&& found.isCompleted() == todo.isCompleted()));
@@ -82,10 +86,49 @@ class DemoApplicationTests {
 		nonMatchingTodo.setCompleted(false);
 		todoMapper.insert(nonMatchingTodo);
 
-		assertTrue(todoMapper.searchByTitle("一致検索").stream()
+		assertTrue(todoMapper.searchByTitle("一致検索", "createdAt", "desc").stream()
 				.anyMatch(todo -> todo.getId().equals(matchingTodo.getId())));
-		assertFalse(todoMapper.searchByTitle("一致検索").stream()
+		assertFalse(todoMapper.searchByTitle("一致検索", "createdAt", "desc").stream()
 				.anyMatch(todo -> todo.getId().equals(nonMatchingTodo.getId())));
+	}
+
+	@Test
+	void todoMapperSortsByTitleStatusAndCreationDate() {
+		Todo newerTodo = new Todo();
+		newerTodo.setTitle("Zソートテスト");
+		newerTodo.setCompleted(true);
+		todoMapper.insert(newerTodo);
+
+		Todo olderTodo = new Todo();
+		olderTodo.setTitle("Aソートテスト");
+		olderTodo.setCompleted(false);
+		todoMapper.insert(olderTodo);
+
+		jdbcTemplate.update("UPDATE todos SET created_at = ? WHERE id = ?",
+				Timestamp.valueOf(LocalDateTime.of(2026, 1, 2, 0, 0)), newerTodo.getId());
+		jdbcTemplate.update("UPDATE todos SET created_at = ? WHERE id = ?",
+				Timestamp.valueOf(LocalDateTime.of(2026, 1, 1, 0, 0)), olderTodo.getId());
+
+		assertEquals(List.of(olderTodo.getId(), newerTodo.getId()),
+				todoMapper.findAll("title", "asc").stream()
+						.filter(todo -> List.of(olderTodo.getId(), newerTodo.getId()).contains(todo.getId()))
+						.map(Todo::getId)
+						.toList());
+		assertEquals(List.of(newerTodo.getId(), olderTodo.getId()),
+				todoMapper.findAll("title", "desc").stream()
+						.filter(todo -> List.of(olderTodo.getId(), newerTodo.getId()).contains(todo.getId()))
+						.map(Todo::getId)
+						.toList());
+		assertEquals(List.of(olderTodo.getId(), newerTodo.getId()),
+				todoMapper.findAll("completed", "asc").stream()
+						.filter(todo -> List.of(olderTodo.getId(), newerTodo.getId()).contains(todo.getId()))
+						.map(Todo::getId)
+						.toList());
+		assertEquals(List.of(olderTodo.getId(), newerTodo.getId()),
+				todoMapper.findAll("createdAt", "asc").stream()
+						.filter(todo -> List.of(olderTodo.getId(), newerTodo.getId()).contains(todo.getId()))
+						.map(Todo::getId)
+						.toList());
 	}
 
 	@Test
@@ -154,7 +197,8 @@ class DemoApplicationTests {
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("ID")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("タイトル")))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了状態")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("ステータス")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("作成日")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(incompleteTodo.getId().toString())))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了一覧テスト")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了一覧テスト")))
@@ -186,6 +230,27 @@ class DemoApplicationTests {
 	}
 
 	@Test
+	void todoListSortLinksPreserveSearchAndShowCurrentDirection() throws Exception {
+		Todo matchingTodo = new Todo();
+		matchingTodo.setTitle("needle sort test");
+		matchingTodo.setCompleted(false);
+		todoMapper.insert(matchingTodo);
+
+		mockMvc.perform(get("/todo")
+						.param("keyword", "needle")
+						.param("sort", "title")
+						.param("direction", "asc"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"needle\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("タイトル")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("▲")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("keyword=needle")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=completed")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("direction=asc")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=title&amp;direction=desc")));
+	}
+
+	@Test
 	void todoListSearchDisplaysMatchingTodosAndPreservesKeyword() throws Exception {
 		Todo matchingTodo = new Todo();
 		matchingTodo.setTitle("検索フォーム表示対象");
@@ -207,7 +272,8 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("検索フォーム表示対象")))
 				.andExpect(content().string(org.hamcrest.Matchers.not(
 						org.hamcrest.Matchers.containsString("検索対象外タイトル"))))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"href=\"/todo?sort=createdAt&amp;direction=desc\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("クリア")));
 	}
 

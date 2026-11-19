@@ -8,9 +8,14 @@ import com.example.demo.Todo;
 
 public interface TodoMapper {
 
-	List<Todo> findAll();
+	List<Todo> findAll(
+			@Param("sort") String sort,
+			@Param("direction") String direction);
 
-	List<Todo> searchByTitle(@Param("keyword") String keyword);
+	List<Todo> searchByTitle(
+			@Param("keyword") String keyword,
+			@Param("sort") String sort,
+			@Param("direction") String direction);
 
 	Todo findById(Long id);
 

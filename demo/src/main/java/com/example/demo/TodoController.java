@@ -26,15 +26,30 @@ public class TodoController {
 	@GetMapping
 	public String list(
 			@RequestParam(required = false) String keyword,
+			@RequestParam(required = false, defaultValue = "createdAt") String sort,
+			@RequestParam(required = false, defaultValue = "desc") String direction,
 			Model model) {
 		String normalizedKeyword = keyword == null ? null : keyword.trim();
 		if (normalizedKeyword != null && normalizedKeyword.isEmpty()) {
 			normalizedKeyword = null;
 		}
+		String normalizedSort = switch (sort) {
+			case "title", "completed" -> sort;
+			default -> "createdAt";
+		};
+		String normalizedDirection = "asc".equalsIgnoreCase(direction) ? "asc" : "desc";
 		model.addAttribute("todos", normalizedKeyword == null
-				? todoService.findAll()
-				: todoService.searchByTitle(normalizedKeyword));
+				? todoService.findAll(normalizedSort, normalizedDirection)
+				: todoService.searchByTitle(normalizedKeyword, normalizedSort, normalizedDirection));
 		model.addAttribute("keyword", normalizedKeyword);
+		model.addAttribute("sort", normalizedSort);
+		model.addAttribute("direction", normalizedDirection);
+		model.addAttribute("nextCreatedAtDirection",
+				"createdAt".equals(normalizedSort) && "asc".equals(normalizedDirection) ? "desc" : "asc");
+		model.addAttribute("nextTitleDirection",
+				"title".equals(normalizedSort) && "asc".equals(normalizedDirection) ? "desc" : "asc");
+		model.addAttribute("nextCompletedDirection",
+				"completed".equals(normalizedSort) && "asc".equals(normalizedDirection) ? "desc" : "asc");
 		return "todo/list";
 	}
 

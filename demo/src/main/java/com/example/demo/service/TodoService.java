@@ -20,12 +20,12 @@ public class TodoService {
 		todoMapper.insert(todo);
 	}
 
-	public List<Todo> findAll() {
-		return todoMapper.findAll();
+	public List<Todo> findAll(String sort, String direction) {
+		return todoMapper.findAll(sort, direction);
 	}
 
-	public List<Todo> searchByTitle(String keyword) {
-		return todoMapper.searchByTitle(keyword);
+	public List<Todo> searchByTitle(String keyword, String sort, String direction) {
+		return todoMapper.searchByTitle(keyword, sort, direction);
 	}
 
 	public Todo findById(Long id) {

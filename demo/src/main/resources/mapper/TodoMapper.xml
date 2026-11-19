@@ -3,21 +3,35 @@
 		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		"https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.demo.mapper.TodoMapper">
+	<sql id="todoOrderBy">
+		ORDER BY
+		<choose>
+			<when test="sort == 'title'">title</when>
+			<when test="sort == 'completed'">completed</when>
+			<otherwise>created_at</otherwise>
+		</choose>
+		<choose>
+			<when test="direction == 'asc'">ASC</when>
+			<otherwise>DESC</otherwise>
+		</choose>,
+		id ASC
+	</sql>
+
 	<select id="findAll" resultType="com.example.demo.Todo">
-		SELECT id, title, completed
+		SELECT id, title, completed, created_at
 		FROM todos
-		ORDER BY id
+		<include refid="todoOrderBy"/>
 	</select>
 
 	<select id="searchByTitle" resultType="com.example.demo.Todo">
-		SELECT id, title, completed
+		SELECT id, title, completed, created_at
 		FROM todos
 		WHERE title LIKE CONCAT('%', #{keyword}, '%')
-		ORDER BY id
+		<include refid="todoOrderBy"/>
 	</select>
 
 	<select id="findById" parameterType="long" resultType="com.example.demo.Todo">
-		SELECT id, title, completed
+		SELECT id, title, completed, created_at
 		FROM todos
 		WHERE id = #{id}
 	</select>
