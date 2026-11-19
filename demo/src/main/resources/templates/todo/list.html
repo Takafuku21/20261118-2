@@ -89,6 +89,13 @@
 				</a>
 			</th>
 			<th scope="col">
+				<a th:href="@{/todo(page=0,keyword=${keyword},sort='priority',direction=${nextPriorityDirection})}">
+					優先度
+					<span th:if="${sort == 'priority'}" th:text="${direction == 'asc' ? '▲' : '▼'}"
+						  aria-hidden="true"></span>
+				</a>
+			</th>
+			<th scope="col">
 				<a th:href="@{/todo(page=0,keyword=${keyword},sort='createdAt',direction=${nextCreatedAtDirection})}">
 					作成日
 					<span th:if="${sort == 'createdAt'}" th:text="${direction == 'asc' ? '▲' : '▼'}"
@@ -109,6 +116,10 @@
 			<td>
 				<span th:if="${todo.completed}" class="badge bg-success">完了</span>
 				<span th:unless="${todo.completed}" class="badge bg-secondary">未完了</span>
+			</td>
+			<td>
+				<span class="badge" th:classappend="${todo.priority.cssClass}"
+					  th:text="${todo.priority.displayName}">中</span>
 			</td>
 			<td th:text="${todo.createdAt}"></td>
 			<td>

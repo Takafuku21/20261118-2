@@ -25,6 +25,13 @@
 			<div class="text-danger" th:if="${#fields.hasErrors('title')}" th:errors="*{title}"></div>
 		</div>
 		<div class="mb-3">
+			<label for="priority" class="form-label">優先度</label>
+			<select class="form-select" id="priority" th:field="*{priority}">
+				<option th:each="option : ${T(com.example.demo.Priority).values()}"
+						th:value="${option}" th:text="${option.displayName}"></option>
+			</select>
+		</div>
+		<div class="mb-3">
 			<label for="detail" class="form-label">詳細</label>
 			<textarea class="form-control" id="detail" rows="3" th:field="*{detail}"></textarea>
 			<div class="text-danger" th:if="${#fields.hasErrors('detail')}" th:errors="*{detail}"></div>

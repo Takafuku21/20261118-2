@@ -44,7 +44,7 @@ class DemoApplicationTests {
 
 	@Test
 	void todosTableIsInitializedAtStartup() {
-		jdbcTemplate.queryForList("SELECT id, title, completed FROM todos");
+		jdbcTemplate.queryForList("SELECT id, title, completed, priority FROM todos");
 	}
 
 	@Test
@@ -73,6 +73,7 @@ class DemoApplicationTests {
 		assertNotNull(found);
 		assertEquals(todo.getId(), found.getId());
 		assertEquals(todo.getTitle(), found.getTitle());
+		assertEquals(Priority.MEDIUM, found.getPriority());
 	}
 
 	@Test
@@ -128,6 +129,36 @@ class DemoApplicationTests {
 		assertEquals(List.of(olderTodo.getId(), newerTodo.getId()),
 				todoMapper.findAll("createdAt", "asc").stream()
 						.filter(todo -> List.of(olderTodo.getId(), newerTodo.getId()).contains(todo.getId()))
+						.map(Todo::getId)
+						.toList());
+	}
+
+	@Test
+	void todoMapperSortsPrioritiesInPriorityOrder() {
+		Todo lowPriorityTodo = new Todo();
+		lowPriorityTodo.setTitle("低優先度");
+		lowPriorityTodo.setPriority(Priority.LOW);
+		todoMapper.insert(lowPriorityTodo);
+
+		Todo mediumPriorityTodo = new Todo();
+		mediumPriorityTodo.setTitle("中優先度");
+		mediumPriorityTodo.setPriority(Priority.MEDIUM);
+		todoMapper.insert(mediumPriorityTodo);
+
+		Todo highPriorityTodo = new Todo();
+		highPriorityTodo.setTitle("高優先度");
+		highPriorityTodo.setPriority(Priority.HIGH);
+		todoMapper.insert(highPriorityTodo);
+
+		List<Long> targetIds = List.of(
+				highPriorityTodo.getId(), mediumPriorityTodo.getId(), lowPriorityTodo.getId());
+		assertEquals(targetIds, todoMapper.findAll("priority", "asc").stream()
+				.filter(todo -> targetIds.contains(todo.getId()))
+				.map(Todo::getId)
+				.toList());
+		assertEquals(List.of(lowPriorityTodo.getId(), mediumPriorityTodo.getId(), highPriorityTodo.getId()),
+				todoMapper.findAll("priority", "desc").stream()
+						.filter(todo -> targetIds.contains(todo.getId()))
 						.map(Todo::getId)
 						.toList());
 	}
@@ -192,6 +223,7 @@ class DemoApplicationTests {
 		Todo completedTodo = new Todo();
 		completedTodo.setTitle("完了一覧テスト");
 		completedTodo.setCompleted(true);
+		completedTodo.setPriority(Priority.HIGH);
 		todoMapper.insert(completedTodo);
 
 		mockMvc.perform(get("/todo"))
@@ -203,6 +235,10 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(incompleteTodo.getId().toString())))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了一覧テスト")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了一覧テスト")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"class=\"badge bg-danger\">高</span>")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"class=\"badge bg-warning text-dark\">中</span>")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"class=\"badge bg-success\">完了</span>")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
@@ -253,6 +289,7 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("▲")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("keyword=needle")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=completed")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=priority")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("direction=asc")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=title&amp;direction=desc")));
 	}
@@ -335,6 +372,8 @@ class DemoApplicationTests {
 		mockMvc.perform(get("/todo/{id}/edit", todo.getId()))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"編集前タイトル\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"priority\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("selected")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"completed\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"action=\"/todo/" + todo.getId() + "/update\"")));
@@ -349,7 +388,8 @@ class DemoApplicationTests {
 
 		mockMvc.perform(post("/todo/{id}/update", todo.getId())
 						.param("title", "更新後タイトル")
-						.param("completed", "true"))
+						.param("completed", "true")
+						.param("priority", "HIGH"))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/todo"))
 				.andExpect(flash().attribute("successMessage", "更新が完了しました"));
@@ -357,6 +397,7 @@ class DemoApplicationTests {
 		Todo updatedTodo = todoMapper.findById(todo.getId());
 		assertEquals("更新後タイトル", updatedTodo.getTitle());
 		assertEquals(true, updatedTodo.getCompleted());
+		assertEquals(Priority.HIGH, updatedTodo.getPriority());
 	}
 
 	@Test
@@ -438,6 +479,11 @@ class DemoApplicationTests {
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"author\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"title\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"priority\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"HIGH\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("高")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("中")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("低")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"detail\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/todo/confirm\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo\"")));
@@ -448,11 +494,15 @@ class DemoApplicationTests {
 		mockMvc.perform(post("/todo/confirm")
 						.param("author", "作成者")
 						.param("title", "サンプルタスク")
+						.param("priority", "HIGH")
 						.param("detail", "タスクの詳細"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("登録内容の確認")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("作成者")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("サンプルタスク")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("優先度")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"HIGH\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(">高</p>")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("タスクの詳細")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/todo/complete\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"title\"")))
@@ -484,14 +534,18 @@ class DemoApplicationTests {
 	}
 
 	@Test
-	void todoCompleteRegistersTodoAndRedirectsToList() throws Exception {
+	void todoCompleteRegistersTodoWithPriorityAndRedirectsToList() throws Exception {
 		String title = "登録テスト";
-		mockMvc.perform(post("/todo/complete").param("title", title))
+		mockMvc.perform(post("/todo/complete")
+						.param("title", title)
+						.param("priority", "LOW"))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/todo"));
 
 		assertEquals(1, jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM todos WHERE title = ?", Integer.class, title));
+		assertEquals("LOW", jdbcTemplate.queryForObject(
+				"SELECT priority FROM todos WHERE title = ?", String.class, title));
 	}
 
 }

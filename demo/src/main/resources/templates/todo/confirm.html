@@ -22,6 +22,9 @@
 				<input type="text" class="form-control mb-3" id="title"
 					   th:value="${todoForm.title}" readonly>
 				<input type="hidden" name="title" th:value="${todoForm.title}">
+				<h2 class="h5 card-title">優先度</h2>
+				<p class="card-text" th:text="${todoForm.priority.displayName}"></p>
+				<input type="hidden" name="priority" th:value="${todoForm.priority}">
 				<h2 class="h5 card-title">詳細</h2>
 				<p class="card-text mb-0" th:text="${todoForm.detail}"></p>
 			</div>

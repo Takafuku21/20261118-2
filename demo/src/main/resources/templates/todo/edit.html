@@ -18,6 +18,14 @@
 			<label for="title" class="form-label">タイトル</label>
 			<input type="text" class="form-control" id="title" name="title" th:value="${todo.title}">
 		</div>
+		<div class="mb-3">
+			<label for="priority" class="form-label">優先度</label>
+			<select class="form-select" id="priority" name="priority">
+				<option th:each="option : ${T(com.example.demo.Priority).values()}"
+						th:value="${option}" th:text="${option.displayName}"
+						th:selected="${option == todo.priority}"></option>
+			</select>
+		</div>
 		<div class="form-check mb-4">
 			<input class="form-check-input" type="checkbox" id="completed" name="completed"
 				   value="true" th:checked="${todo.completed}">

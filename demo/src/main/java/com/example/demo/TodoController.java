@@ -42,7 +42,7 @@ public class TodoController {
 			normalizedKeyword = null;
 		}
 		String normalizedSort = switch (sort) {
-			case "title", "completed" -> sort;
+			case "title", "completed", "priority" -> sort;
 			default -> "createdAt";
 		};
 		String normalizedDirection = "asc".equalsIgnoreCase(direction) ? "asc" : "desc";
@@ -67,6 +67,8 @@ public class TodoController {
 				"title".equals(normalizedSort) && "asc".equals(normalizedDirection) ? "desc" : "asc");
 		model.addAttribute("nextCompletedDirection",
 				"completed".equals(normalizedSort) && "asc".equals(normalizedDirection) ? "desc" : "asc");
+		model.addAttribute("nextPriorityDirection",
+				"priority".equals(normalizedSort) && "asc".equals(normalizedDirection) ? "desc" : "asc");
 		return "todo/list";
 	}
 
@@ -91,11 +93,13 @@ public class TodoController {
 			@PathVariable Long id,
 			@RequestParam("title") String title,
 			@RequestParam(name = "completed", defaultValue = "false") Boolean completed,
+			@RequestParam(name = "priority", defaultValue = "MEDIUM") Priority priority,
 			RedirectAttributes redirectAttributes) {
 		Todo todo = new Todo();
 		todo.setId(id);
 		todo.setTitle(title);
 		todo.setCompleted(completed);
+		todo.setPriority(priority);
 		if (todoService.update(todo)) {
 			redirectAttributes.addFlashAttribute("successMessage", "更新が完了しました");
 		} else {
@@ -123,10 +127,13 @@ public class TodoController {
 	}
 
 	@PostMapping("/complete")
-	public String complete(@RequestParam("title") String title) {
+	public String complete(
+			@RequestParam("title") String title,
+			@RequestParam(name = "priority", defaultValue = "MEDIUM") Priority priority) {
 		Todo todo = new Todo();
 		todo.setTitle(title);
 		todo.setCompleted(false);
+		todo.setPriority(priority);
 		todoService.register(todo);
 		return "redirect:/todo";
 	}

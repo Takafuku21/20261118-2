@@ -11,6 +11,7 @@ public class Todo {
 	private String title;
 	private boolean completed;
 	private LocalDateTime createdAt;
+	private Priority priority = Priority.MEDIUM;
 
 	public boolean isCompleted() {
 		return completed;

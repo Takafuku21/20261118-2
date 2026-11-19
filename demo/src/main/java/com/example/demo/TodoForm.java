@@ -17,4 +17,6 @@ public class TodoForm {
 
 	@Size(max = 500, message = "詳細は500文字以内で入力してください")
 	private String detail;
+
+	private Priority priority = Priority.MEDIUM;
 }

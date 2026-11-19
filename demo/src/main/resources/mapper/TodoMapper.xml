@@ -8,6 +8,14 @@
 		<choose>
 			<when test="sort == 'title'">title</when>
 			<when test="sort == 'completed'">completed</when>
+			<when test="sort == 'priority'">
+				CASE priority
+					WHEN 'HIGH' THEN 1
+					WHEN 'MEDIUM' THEN 2
+					WHEN 'LOW' THEN 3
+					ELSE 2
+				END
+			</when>
 			<otherwise>created_at</otherwise>
 		</choose>
 		<choose>
@@ -18,13 +26,13 @@
 	</sql>
 
 	<select id="findAll" resultType="com.example.demo.Todo">
-		SELECT id, title, completed, created_at
+		SELECT id, title, completed, created_at, priority
 		FROM todos
 		<include refid="todoOrderBy"/>
 	</select>
 
 	<select id="findPage" resultType="com.example.demo.Todo">
-		SELECT id, title, completed, created_at
+		SELECT id, title, completed, created_at, priority
 		FROM todos
 		<include refid="todoOrderBy"/>
 		LIMIT #{limit} OFFSET #{offset}
@@ -35,14 +43,14 @@
 	</select>
 
 	<select id="searchByTitle" resultType="com.example.demo.Todo">
-		SELECT id, title, completed, created_at
+		SELECT id, title, completed, created_at, priority
 		FROM todos
 		WHERE title LIKE CONCAT('%', #{keyword}, '%')
 		<include refid="todoOrderBy"/>
 	</select>
 
 	<select id="searchPageByTitle" resultType="com.example.demo.Todo">
-		SELECT id, title, completed, created_at
+		SELECT id, title, completed, created_at, priority
 		FROM todos
 		WHERE title LIKE CONCAT('%', #{keyword}, '%')
 		<include refid="todoOrderBy"/>
@@ -56,15 +64,15 @@
 	</select>
 
 	<select id="findById" parameterType="long" resultType="com.example.demo.Todo">
-		SELECT id, title, completed, created_at
+		SELECT id, title, completed, created_at, priority
 		FROM todos
 		WHERE id = #{id}
 	</select>
 
 	<insert id="insert" parameterType="com.example.demo.Todo"
 			useGeneratedKeys="true" keyProperty="id">
-		INSERT INTO todos (title, completed)
-		VALUES (#{title}, #{completed})
+		INSERT INTO todos (title, completed, priority)
+		VALUES (#{title}, #{completed}, #{priority})
 	</insert>
 
 	<delete id="deleteById" parameterType="long">
@@ -75,7 +83,8 @@
 	<update id="update" parameterType="com.example.demo.Todo">
 		UPDATE todos
 		SET title = #{title},
-			completed = #{completed}
+			completed = #{completed},
+			priority = #{priority}
 		WHERE id = #{id}
 	</update>
 </mapper>
