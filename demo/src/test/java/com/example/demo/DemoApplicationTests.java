@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -220,10 +221,16 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"text-decoration-line-through text-muted")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
-						"/todo/" + incompleteTodo.getId() + "/delete")))
+						"/todo/" + incompleteTodo.getId() + "\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("btn-danger btn-sm")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("data-delete-trigger")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
-						"return confirm('本当に削除しますか？');")))
+						"data-todo-title=\"未完了一覧テスト\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"id=\"delete-confirmation\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"本当に削除しますか？")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("requestSubmit()")))
 				.andExpect(content().string(org.hamcrest.Matchers.not(
 						org.hamcrest.Matchers.containsString("ToDoがまだ登録されていません"))))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
@@ -350,7 +357,8 @@ class DemoApplicationTests {
 		otherTodo.setCompleted(false);
 		todoMapper.insert(otherTodo);
 
-		mockMvc.perform(post("/todo/{id}/delete", todoToDelete.getId()))
+		mockMvc.perform(post("/todo/{id}", todoToDelete.getId())
+						.param("_method", "delete"))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/todo"))
 				.andExpect(flash().attribute("successMessage", "ToDoを削除しました"));
@@ -363,7 +371,7 @@ class DemoApplicationTests {
 
 	@Test
 	void deletingMissingTodoShowsErrorFlashMessage() throws Exception {
-		mockMvc.perform(post("/todo/{id}/delete", Long.MAX_VALUE))
+		mockMvc.perform(delete("/todo/{id}", Long.MAX_VALUE))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/todo"))
 				.andExpect(flash().attribute("errorMessage", "削除に失敗しました"));

@@ -13,6 +13,17 @@
 			background-color: #e9ecef !important;
 			color: #6c757d;
 		}
+		#delete-confirmation {
+			border: 0;
+			border-radius: 0.5rem;
+			box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.2);
+			max-width: min(32rem, calc(100% - 2rem));
+			padding: 1.5rem;
+			width: 100%;
+		}
+		#delete-confirmation::backdrop {
+			background: rgba(0, 0, 0, 0.5);
+		}
 	</style>
 </head>
 <body>
@@ -106,15 +117,28 @@
 						<button type="submit" class="btn btn-outline-success btn-sm"
 								th:text="${todo.completed} ? '未完了に戻す' : '完了にする'"></button>
 					</form>
-					<form method="post" th:action="@{/todo/{id}/delete(id=${todo.id})}"
-						  onsubmit="return confirm('本当に削除しますか？');">
-						<button type="submit" class="btn btn-danger btn-sm">削除</button>
+					<form method="post" th:action="@{/todo/{id}(id=${todo.id})}" class="d-inline">
+						<input type="hidden" name="_method" value="delete">
+						<button type="button" class="btn btn-danger btn-sm"
+								data-delete-trigger th:attr="data-todo-title=${todo.title}">削除</button>
 					</form>
 				</div>
 			</td>
 		</tr>
 		</tbody>
 	</table>
+
+	<dialog id="delete-confirmation" aria-labelledby="delete-confirmation-title"
+			aria-describedby="delete-confirmation-message">
+		<h2 id="delete-confirmation-title" class="h5">削除の確認</h2>
+		<p id="delete-confirmation-message" class="mb-4">
+			「<span id="delete-target-title"></span>」を本当に削除しますか？
+		</p>
+		<div class="d-flex justify-content-end gap-2">
+			<button type="button" class="btn btn-outline-secondary" data-cancel-delete autofocus>キャンセル</button>
+			<button type="button" id="confirm-delete" class="btn btn-danger">削除する</button>
+		</div>
+	</dialog>
 </main>
 <script>
 	document.querySelectorAll(".auto-dismiss-alert").forEach((alert) => {
@@ -122,6 +146,36 @@
 			alert.classList.remove("show");
 			setTimeout(() => alert.remove(), 150);
 		}, 3000);
+	});
+
+	const deleteDialog = document.getElementById("delete-confirmation");
+	const deleteTargetTitle = document.getElementById("delete-target-title");
+	let pendingDeleteForm = null;
+
+	document.querySelectorAll("[data-delete-trigger]").forEach((button) => {
+		button.addEventListener("click", () => {
+			pendingDeleteForm = button.closest("form");
+			deleteTargetTitle.textContent = button.dataset.todoTitle;
+			deleteDialog.showModal();
+		});
+	});
+
+	document.querySelector("[data-cancel-delete]").addEventListener("click", () => {
+		deleteDialog.close();
+	});
+
+	document.getElementById("confirm-delete").addEventListener("click", () => {
+		if (!pendingDeleteForm) {
+			return;
+		}
+		const formToSubmit = pendingDeleteForm;
+		pendingDeleteForm = null;
+		deleteDialog.close();
+		formToSubmit.requestSubmit();
+	});
+
+	deleteDialog.addEventListener("close", () => {
+		pendingDeleteForm = null;
 	});
 </script>
 </body>
