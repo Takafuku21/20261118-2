@@ -24,6 +24,10 @@ public class TodoService {
 		return todoMapper.findAll();
 	}
 
+	public List<Todo> searchByTitle(String keyword) {
+		return todoMapper.searchByTitle(keyword);
+	}
+
 	public Todo findById(Long id) {
 		return todoMapper.findById(id);
 	}

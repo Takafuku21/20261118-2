@@ -71,6 +71,24 @@ class DemoApplicationTests {
 	}
 
 	@Test
+	void todoMapperSearchesTitlesByPartialMatch() {
+		Todo matchingTodo = new Todo();
+		matchingTodo.setTitle("部分一致検索の対象");
+		matchingTodo.setCompleted(false);
+		todoMapper.insert(matchingTodo);
+
+		Todo nonMatchingTodo = new Todo();
+		nonMatchingTodo.setTitle("別のタイトル");
+		nonMatchingTodo.setCompleted(false);
+		todoMapper.insert(nonMatchingTodo);
+
+		assertTrue(todoMapper.searchByTitle("一致検索").stream()
+				.anyMatch(todo -> todo.getId().equals(matchingTodo.getId())));
+		assertFalse(todoMapper.searchByTitle("一致検索").stream()
+				.anyMatch(todo -> todo.getId().equals(nonMatchingTodo.getId())));
+	}
+
+	@Test
 	void isCompletedReflectsCompletionFlag() {
 		Todo todo = new Todo();
 
@@ -165,6 +183,32 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.not(
 						org.hamcrest.Matchers.containsString("ToDoがまだ登録されていません"))))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo/new\"")));
+	}
+
+	@Test
+	void todoListSearchDisplaysMatchingTodosAndPreservesKeyword() throws Exception {
+		Todo matchingTodo = new Todo();
+		matchingTodo.setTitle("検索フォーム表示対象");
+		matchingTodo.setCompleted(false);
+		todoMapper.insert(matchingTodo);
+
+		Todo nonMatchingTodo = new Todo();
+		nonMatchingTodo.setTitle("検索対象外タイトル");
+		nonMatchingTodo.setCompleted(false);
+		todoMapper.insert(nonMatchingTodo);
+
+		mockMvc.perform(get("/todo").param("keyword", "フォーム表示"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"value=\"フォーム表示\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"検索結果")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("1</span>件")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("検索フォーム表示対象")))
+				.andExpect(content().string(org.hamcrest.Matchers.not(
+						org.hamcrest.Matchers.containsString("検索対象外タイトル"))))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("クリア")));
 	}
 
 	@Test

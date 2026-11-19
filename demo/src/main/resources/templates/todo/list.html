@@ -27,10 +27,29 @@
 	<div th:if="${errorMessage}" class="alert alert-danger fade show auto-dismiss-alert" role="alert"
 		 th:text="${errorMessage}"></div>
 
+	<form method="get" action="/todo" class="row g-2 align-items-center mb-3">
+		<div class="col-sm-8 col-md-6">
+			<label for="keyword" class="visually-hidden">タイトルで検索</label>
+			<input id="keyword" name="keyword" type="search" class="form-control"
+				   placeholder="タイトルで検索" th:value="${keyword}">
+		</div>
+		<div class="col-auto">
+			<button type="submit" class="btn btn-primary">検索</button>
+		</div>
+		<div class="col-auto" th:if="${keyword != null}">
+			<a class="btn btn-outline-secondary" href="/todo">クリア</a>
+		</div>
+	</form>
+	<p class="text-muted mb-3">
+		<span th:text="${keyword != null} ? '検索結果' : '表示件数'">表示件数</span>:
+		<span th:text="${#lists.size(todos)}">0</span>件
+	</p>
+
 	<section th:if="${#lists.isEmpty(todos)}" class="card border-0 shadow-sm bg-light text-center py-5 px-3">
 		<div class="card-body">
-			<h2 class="h4 card-title mb-3">ToDoがまだ登録されていません</h2>
-			<p class="card-text text-muted mb-4">新規作成ボタンから、最初のToDoを登録しましょう。</p>
+			<h2 th:if="${keyword != null}" class="h4 card-title mb-3">検索条件に一致するToDoがありません</h2>
+			<h2 th:unless="${keyword != null}" class="h4 card-title mb-3">ToDoがまだ登録されていません</h2>
+			<p th:unless="${keyword != null}" class="card-text text-muted mb-4">新規作成ボタンから、最初のToDoを登録しましょう。</p>
 			<a class="btn btn-primary" href="/todo/new">新規作成</a>
 		</div>
 	</section>

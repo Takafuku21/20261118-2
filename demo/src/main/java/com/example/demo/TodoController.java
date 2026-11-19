@@ -24,8 +24,17 @@ public class TodoController {
 	}
 
 	@GetMapping
-	public String list(Model model) {
-		model.addAttribute("todos", todoService.findAll());
+	public String list(
+			@RequestParam(required = false) String keyword,
+			Model model) {
+		String normalizedKeyword = keyword == null ? null : keyword.trim();
+		if (normalizedKeyword != null && normalizedKeyword.isEmpty()) {
+			normalizedKeyword = null;
+		}
+		model.addAttribute("todos", normalizedKeyword == null
+				? todoService.findAll()
+				: todoService.searchByTitle(normalizedKeyword));
+		model.addAttribute("keyword", normalizedKeyword);
 		return "todo/list";
 	}
 

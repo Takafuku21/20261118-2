@@ -9,6 +9,13 @@
 		ORDER BY id
 	</select>
 
+	<select id="searchByTitle" resultType="com.example.demo.Todo">
+		SELECT id, title, completed
+		FROM todos
+		WHERE title LIKE CONCAT('%', #{keyword}, '%')
+		ORDER BY id
+	</select>
+
 	<select id="findById" parameterType="long" resultType="com.example.demo.Todo">
 		SELECT id, title, completed
 		FROM todos
