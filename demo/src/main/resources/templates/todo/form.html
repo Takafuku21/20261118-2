@@ -32,6 +32,16 @@
 			</select>
 		</div>
 		<div class="mb-3">
+			<label for="categoryId" class="form-label">カテゴリ</label>
+			<select class="form-select" id="categoryId" th:field="*{categoryId}">
+				<option value="">カテゴリなし</option>
+				<option th:each="category : ${categories}" th:value="${category.id}"
+						th:text="${category.name}"></option>
+			</select>
+			<div class="text-danger" th:if="${#fields.hasErrors('categoryId')}"
+				 th:errors="*{categoryId}"></div>
+		</div>
+		<div class="mb-3">
 			<label for="detail" class="form-label">詳細</label>
 			<textarea class="form-control" id="detail" rows="3" th:field="*{detail}"></textarea>
 			<div class="text-danger" th:if="${#fields.hasErrors('detail')}" th:errors="*{detail}"></div>

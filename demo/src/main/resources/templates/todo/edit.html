@@ -26,6 +26,15 @@
 						th:selected="${option == todo.priority}"></option>
 			</select>
 		</div>
+		<div class="mb-3">
+			<label for="categoryId" class="form-label">カテゴリ</label>
+			<select class="form-select" id="categoryId" name="categoryId">
+				<option value="" th:selected="${todo.category == null}">カテゴリなし</option>
+				<option th:each="category : ${categories}" th:value="${category.id}"
+						th:text="${category.name}"
+						th:selected="${todo.category != null and category.id == todo.category.id}"></option>
+			</select>
+		</div>
 		<div class="form-check mb-4">
 			<input class="form-check-input" type="checkbox" id="completed" name="completed"
 				   value="true" th:checked="${todo.completed}">

@@ -11,6 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.example.demo.mapper.CategoryMapper;
 import com.example.demo.mapper.TodoMapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,6 +39,9 @@ class DemoApplicationTests {
 	@Autowired
 	private TodoMapper todoMapper;
 
+	@Autowired
+	private CategoryMapper categoryMapper;
+
 	@Test
 	void contextLoads() {
 	}
@@ -45,6 +49,12 @@ class DemoApplicationTests {
 	@Test
 	void todosTableIsInitializedAtStartup() {
 		jdbcTemplate.queryForList("SELECT id, title, completed, priority FROM todos");
+	}
+
+	@Test
+	void categoryMasterIsInitialized() {
+		assertEquals(List.of("仕事", "個人", "その他"),
+				categoryMapper.findAll().stream().map(Category::getName).toList());
 	}
 
 	@Test
@@ -74,6 +84,22 @@ class DemoApplicationTests {
 		assertEquals(todo.getId(), found.getId());
 		assertEquals(todo.getTitle(), found.getTitle());
 		assertEquals(Priority.MEDIUM, found.getPriority());
+	}
+
+	@Test
+	void todoMapperLoadsCategoryWithTodoUsingJoin() {
+		Category category = categoryMapper.findAll().get(0);
+		Todo todo = new Todo();
+		todo.setTitle("JOINカテゴリ取得テスト");
+		todo.setCategory(category);
+		todoMapper.insert(todo);
+
+		Todo found = todoMapper.findById(todo.getId());
+
+		assertNotNull(found.getCategory());
+		assertEquals(category.getId(), found.getCategory().getId());
+		assertEquals(category.getName(), found.getCategory().getName());
+		assertEquals(category.getColor(), found.getCategory().getColor());
 	}
 
 	@Test
@@ -224,6 +250,7 @@ class DemoApplicationTests {
 		completedTodo.setTitle("完了一覧テスト");
 		completedTodo.setCompleted(true);
 		completedTodo.setPriority(Priority.HIGH);
+		completedTodo.setCategory(categoryMapper.findAll().get(0));
 		todoMapper.insert(completedTodo);
 
 		mockMvc.perform(get("/todo"))
@@ -232,6 +259,7 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("タイトル")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("ステータス")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("作成日")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("カテゴリ")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(incompleteTodo.getId().toString())))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了一覧テスト")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了一覧テスト")))
@@ -239,6 +267,9 @@ class DemoApplicationTests {
 						"class=\"badge bg-danger\">高</span>")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"class=\"badge bg-warning text-dark\">中</span>")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"background-color: #0d6efd;")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("仕事</span>")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"class=\"badge bg-success\">完了</span>")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
@@ -363,10 +394,43 @@ class DemoApplicationTests {
 	}
 
 	@Test
+	void todoListFiltersByCategoryAlongWithTitleSearch() throws Exception {
+		List<Category> categories = categoryMapper.findAll();
+		Category selectedCategory = categories.get(0);
+		Category otherCategory = categories.get(1);
+
+		Todo matchingTodo = new Todo();
+		matchingTodo.setTitle("カテゴリ検索対象");
+		matchingTodo.setCategory(selectedCategory);
+		todoMapper.insert(matchingTodo);
+
+		Todo otherTodo = new Todo();
+		otherTodo.setTitle("カテゴリ検索対象外");
+		otherTodo.setCategory(otherCategory);
+		todoMapper.insert(otherTodo);
+
+		mockMvc.perform(get("/todo")
+						.param("keyword", "カテゴリ検索")
+						.param("categoryId", selectedCategory.getId().toString())
+						.param("sort", "title")
+						.param("direction", "asc"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("カテゴリ検索対象</span>")))
+				.andExpect(content().string(org.hamcrest.Matchers.not(
+						org.hamcrest.Matchers.containsString("カテゴリ検索対象外</span>"))))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"selected=\"selected\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"categoryId=" + selectedCategory.getId())))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=title")));
+	}
+
+	@Test
 	void todoEditPageDisplaysExistingTitleAndUpdateAction() throws Exception {
 		Todo todo = new Todo();
 		todo.setTitle("編集前タイトル");
 		todo.setCompleted(false);
+		todo.setCategory(categoryMapper.findAll().get(0));
 		todoMapper.insert(todo);
 
 		mockMvc.perform(get("/todo/{id}/edit", todo.getId()))
@@ -374,6 +438,8 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"編集前タイトル\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"priority\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("selected")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"categoryId\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("仕事")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"completed\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"action=\"/todo/" + todo.getId() + "/update\"")));
@@ -384,12 +450,14 @@ class DemoApplicationTests {
 		Todo todo = new Todo();
 		todo.setTitle("更新前タイトル");
 		todo.setCompleted(false);
+		Category category = categoryMapper.findAll().get(0);
 		todoMapper.insert(todo);
 
 		mockMvc.perform(post("/todo/{id}/update", todo.getId())
 						.param("title", "更新後タイトル")
 						.param("completed", "true")
-						.param("priority", "HIGH"))
+						.param("priority", "HIGH")
+						.param("categoryId", category.getId().toString()))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/todo"))
 				.andExpect(flash().attribute("successMessage", "更新が完了しました"));
@@ -398,6 +466,7 @@ class DemoApplicationTests {
 		assertEquals("更新後タイトル", updatedTodo.getTitle());
 		assertEquals(true, updatedTodo.getCompleted());
 		assertEquals(Priority.HIGH, updatedTodo.getPriority());
+		assertEquals(category.getId(), updatedTodo.getCategory().getId());
 	}
 
 	@Test
@@ -480,10 +549,12 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"author\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"title\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"priority\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"categoryId\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"HIGH\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("高")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("中")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("低")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("仕事")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"detail\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/todo/confirm\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/todo\"")));
@@ -491,10 +562,12 @@ class DemoApplicationTests {
 
 	@Test
 	void todoConfirmPageDisplaysSubmittedFormValues() throws Exception {
+		Category category = categoryMapper.findAll().get(0);
 		mockMvc.perform(post("/todo/confirm")
 						.param("author", "作成者")
 						.param("title", "サンプルタスク")
 						.param("priority", "HIGH")
+						.param("categoryId", category.getId().toString())
 						.param("detail", "タスクの詳細"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("登録内容の確認")))
@@ -503,6 +576,10 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("優先度")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("value=\"HIGH\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(">高</p>")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("カテゴリ")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(">仕事</p>")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"name=\"categoryId\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("タスクの詳細")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/todo/complete\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"title\"")))
@@ -536,9 +613,11 @@ class DemoApplicationTests {
 	@Test
 	void todoCompleteRegistersTodoWithPriorityAndRedirectsToList() throws Exception {
 		String title = "登録テスト";
+		Category category = categoryMapper.findAll().get(0);
 		mockMvc.perform(post("/todo/complete")
 						.param("title", title)
-						.param("priority", "LOW"))
+						.param("priority", "LOW")
+						.param("categoryId", category.getId().toString()))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl("/todo"));
 
@@ -546,6 +625,8 @@ class DemoApplicationTests {
 				"SELECT COUNT(*) FROM todos WHERE title = ?", Integer.class, title));
 		assertEquals("LOW", jdbcTemplate.queryForObject(
 				"SELECT priority FROM todos WHERE title = ?", String.class, title));
+		assertEquals(category.getId(), jdbcTemplate.queryForObject(
+				"SELECT category_id FROM todos WHERE title = ?", Long.class, title));
 	}
 
 }

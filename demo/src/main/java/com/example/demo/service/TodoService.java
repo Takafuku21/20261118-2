@@ -23,16 +23,15 @@ public class TodoService {
 		todoMapper.insert(todo);
 	}
 
-	public Page<Todo> findAll(Pageable pageable, String sort, String direction) {
+	public Page<Todo> findPage(
+			String keyword,
+			Long categoryId,
+			Pageable pageable,
+			String sort,
+			String direction) {
 		List<Todo> todos = todoMapper.findPage(
-				sort, direction, pageable.getPageSize(), pageable.getOffset());
-		return new PageImpl<>(todos, pageable, todoMapper.countAll());
-	}
-
-	public Page<Todo> searchByTitle(String keyword, Pageable pageable, String sort, String direction) {
-		List<Todo> todos = todoMapper.searchPageByTitle(
-				keyword, sort, direction, pageable.getPageSize(), pageable.getOffset());
-		return new PageImpl<>(todos, pageable, todoMapper.countByTitle(keyword));
+				keyword, categoryId, sort, direction, pageable.getPageSize(), pageable.getOffset());
+		return new PageImpl<>(todos, pageable, todoMapper.countFiltered(keyword, categoryId));
 	}
 
 	public Todo findById(Long id) {

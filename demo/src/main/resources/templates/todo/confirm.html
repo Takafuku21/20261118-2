@@ -25,6 +25,9 @@
 				<h2 class="h5 card-title">優先度</h2>
 				<p class="card-text" th:text="${todoForm.priority.displayName}"></p>
 				<input type="hidden" name="priority" th:value="${todoForm.priority}">
+				<h2 class="h5 card-title">カテゴリ</h2>
+				<p class="card-text" th:text="${selectedCategory != null} ? ${selectedCategory.name} : 'カテゴリなし'"></p>
+				<input type="hidden" name="categoryId" th:value="${todoForm.categoryId}">
 				<h2 class="h5 card-title">詳細</h2>
 				<p class="card-text mb-0" th:text="${todoForm.detail}"></p>
 			</div>

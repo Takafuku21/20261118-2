@@ -19,4 +19,5 @@ public class TodoForm {
 	private String detail;
 
 	private Priority priority = Priority.MEDIUM;
+	private Long categoryId;
 }

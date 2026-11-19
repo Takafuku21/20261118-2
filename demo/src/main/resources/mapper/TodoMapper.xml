@@ -3,76 +3,101 @@
 		PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		"https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.demo.mapper.TodoMapper">
+	<resultMap id="todoResultMap" type="com.example.demo.Todo">
+		<id property="id" column="id"/>
+		<result property="title" column="title"/>
+		<result property="completed" column="completed"/>
+		<result property="createdAt" column="created_at"/>
+		<result property="priority" column="priority"/>
+		<association property="category" javaType="com.example.demo.Category"
+						 notNullColumn="category_id">
+			<id property="id" column="category_id"/>
+			<result property="name" column="category_name"/>
+			<result property="color" column="category_color"/>
+		</association>
+	</resultMap>
+
+	<sql id="todoSelectColumns">
+		t.id, t.title, t.completed, t.created_at, t.priority,
+		c.id AS category_id, c.name AS category_name, c.color AS category_color
+	</sql>
+
 	<sql id="todoOrderBy">
 		ORDER BY
 		<choose>
-			<when test="sort == 'title'">title</when>
-			<when test="sort == 'completed'">completed</when>
+			<when test="sort == 'title'">t.title</when>
+			<when test="sort == 'completed'">t.completed</when>
 			<when test="sort == 'priority'">
-				CASE priority
+					CASE t.priority
 					WHEN 'HIGH' THEN 1
 					WHEN 'MEDIUM' THEN 2
 					WHEN 'LOW' THEN 3
 					ELSE 2
 				END
 			</when>
-			<otherwise>created_at</otherwise>
+			<otherwise>t.created_at</otherwise>
 		</choose>
 		<choose>
 			<when test="direction == 'asc'">ASC</when>
 			<otherwise>DESC</otherwise>
 		</choose>,
-		id ASC
+		t.id ASC
 	</sql>
 
-	<select id="findAll" resultType="com.example.demo.Todo">
-		SELECT id, title, completed, created_at, priority
-		FROM todos
+	<select id="findAll" resultMap="todoResultMap">
+		SELECT <include refid="todoSelectColumns"/>
+		FROM todos t
+		LEFT JOIN categories c ON c.id = t.category_id
 		<include refid="todoOrderBy"/>
 	</select>
 
-	<select id="findPage" resultType="com.example.demo.Todo">
-		SELECT id, title, completed, created_at, priority
-		FROM todos
-		<include refid="todoOrderBy"/>
-		LIMIT #{limit} OFFSET #{offset}
-	</select>
-
-	<select id="countAll" resultType="long">
-		SELECT COUNT(*) FROM todos
-	</select>
-
-	<select id="searchByTitle" resultType="com.example.demo.Todo">
-		SELECT id, title, completed, created_at, priority
-		FROM todos
-		WHERE title LIKE CONCAT('%', #{keyword}, '%')
-		<include refid="todoOrderBy"/>
-	</select>
-
-	<select id="searchPageByTitle" resultType="com.example.demo.Todo">
-		SELECT id, title, completed, created_at, priority
-		FROM todos
-		WHERE title LIKE CONCAT('%', #{keyword}, '%')
+	<select id="findPage" resultMap="todoResultMap">
+		SELECT <include refid="todoSelectColumns"/>
+		FROM todos t
+		LEFT JOIN categories c ON c.id = t.category_id
+		<where>
+			<if test="keyword != null and keyword != ''">
+				t.title LIKE CONCAT('%', #{keyword}, '%')
+			</if>
+			<if test="categoryId != null">
+				AND t.category_id = #{categoryId}
+			</if>
+		</where>
 		<include refid="todoOrderBy"/>
 		LIMIT #{limit} OFFSET #{offset}
 	</select>
 
-	<select id="countByTitle" resultType="long">
-		SELECT COUNT(*)
-		FROM todos
-		WHERE title LIKE CONCAT('%', #{keyword}, '%')
+	<select id="countFiltered" resultType="long">
+		SELECT COUNT(*) FROM todos t
+		<where>
+			<if test="keyword != null and keyword != ''">
+				t.title LIKE CONCAT('%', #{keyword}, '%')
+			</if>
+			<if test="categoryId != null">
+				AND t.category_id = #{categoryId}
+			</if>
+		</where>
 	</select>
 
-	<select id="findById" parameterType="long" resultType="com.example.demo.Todo">
-		SELECT id, title, completed, created_at, priority
-		FROM todos
-		WHERE id = #{id}
+	<select id="searchByTitle" resultMap="todoResultMap">
+		SELECT <include refid="todoSelectColumns"/>
+		FROM todos t
+		LEFT JOIN categories c ON c.id = t.category_id
+		WHERE t.title LIKE CONCAT('%', #{keyword}, '%')
+		<include refid="todoOrderBy"/>
+	</select>
+
+	<select id="findById" parameterType="long" resultMap="todoResultMap">
+		SELECT <include refid="todoSelectColumns"/>
+		FROM todos t
+		LEFT JOIN categories c ON c.id = t.category_id
+		WHERE t.id = #{id}
 	</select>
 
 	<insert id="insert" parameterType="com.example.demo.Todo"
 			useGeneratedKeys="true" keyProperty="id">
-		INSERT INTO todos (title, completed, priority)
-		VALUES (#{title}, #{completed}, #{priority})
+		INSERT INTO todos (title, completed, priority, category_id)
+		VALUES (#{title}, #{completed}, #{priority}, #{category.id})
 	</insert>
 
 	<delete id="deleteById" parameterType="long">
@@ -84,7 +109,8 @@
 		UPDATE todos
 		SET title = #{title},
 			completed = #{completed},
-			priority = #{priority}
+			priority = #{priority},
+			category_id = #{category.id}
 		WHERE id = #{id}
 	</update>
 </mapper>
