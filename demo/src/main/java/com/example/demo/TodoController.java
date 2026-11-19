@@ -1,23 +1,32 @@
 package com.example.demo;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-import com.example.demo.service.TodoService;
+import com.example.demo.service.AttachmentRejectedException;
 import com.example.demo.service.CategoryService;
+import com.example.demo.service.FileStorageService;
+import com.example.demo.service.TodoService;
+import com.example.demo.service.TodoAttachmentService;
+import com.example.demo.service.VirusDetectedException;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +35,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
 @RequestMapping("/todo")
@@ -34,13 +45,22 @@ public class TodoController {
 	private static final int PAGE_SIZE = 10;
 	private static final DateTimeFormatter CSV_DATE_FORMAT =
 			DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+	private static final Logger logger = LoggerFactory.getLogger(TodoController.class);
 
 	private final TodoService todoService;
 	private final CategoryService categoryService;
+	private final TodoAttachmentService todoAttachmentService;
+	private final FileStorageService fileStorageService;
 
-	public TodoController(TodoService todoService, CategoryService categoryService) {
+	public TodoController(
+			TodoService todoService,
+			CategoryService categoryService,
+			TodoAttachmentService todoAttachmentService,
+			FileStorageService fileStorageService) {
 		this.todoService = todoService;
 		this.categoryService = categoryService;
+		this.todoAttachmentService = todoAttachmentService;
+		this.fileStorageService = fileStorageService;
 	}
 
 	@GetMapping
@@ -116,7 +136,71 @@ public class TodoController {
 		}
 		model.addAttribute("todo", todo);
 		model.addAttribute("categories", categoryService.findAll());
+		model.addAttribute("attachments", todoAttachmentService.findByTodoId(id));
 		return "todo/edit";
+	}
+
+	@PostMapping(path = "/{todoId}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public String uploadAttachment(
+			@PathVariable Long todoId,
+			@RequestParam("file") MultipartFile file,
+			RedirectAttributes redirectAttributes) {
+		if (todoService.findById(todoId) == null) {
+			redirectAttributes.addFlashAttribute("errorMessage", "ToDoが見つかりません");
+			return "redirect:/todo";
+		}
+		try {
+			todoAttachmentService.upload(todoId, file);
+			redirectAttributes.addFlashAttribute("successMessage", "ファイルを添付しました");
+		} catch (VirusDetectedException exception) {
+			redirectAttributes.addFlashAttribute("errorMessage", exception.getMessage());
+		} catch (AttachmentRejectedException exception) {
+			redirectAttributes.addFlashAttribute("errorMessage", exception.getMessage());
+		} catch (IOException exception) {
+			logger.error("Attachment upload failed for todo {}", todoId, exception);
+			redirectAttributes.addFlashAttribute(
+					"errorMessage", "ウイルスチェックまたはファイル保存に失敗しました");
+		}
+		return "redirect:/todo/" + todoId + "/edit";
+	}
+
+	@GetMapping("/attachments/{attachmentId}/download")
+	public ResponseEntity<Resource> downloadAttachment(@PathVariable Long attachmentId) throws IOException {
+		TodoAttachment attachment = todoAttachmentService.findById(attachmentId);
+		if (attachment == null) {
+			return ResponseEntity.notFound().build();
+		}
+		try {
+			Resource resource = fileStorageService.loadAsResource(attachment.getStoredFilename());
+			ContentDisposition disposition = ContentDisposition.attachment()
+					.filename(attachment.getOriginalFilename(), StandardCharsets.UTF_8)
+					.build();
+			return ResponseEntity.ok()
+					.contentType(MediaType.parseMediaType(attachment.getContentType()))
+					.header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+					.body(resource);
+		} catch (NoSuchFileException exception) {
+			logger.warn("Stored attachment file is missing for attachment {}", attachmentId);
+			return ResponseEntity.notFound().build();
+		}
+	}
+
+	@PostMapping("/{todoId}/attachments/{attachmentId}/delete")
+	public String deleteAttachment(
+			@PathVariable Long todoId,
+			@PathVariable Long attachmentId,
+			RedirectAttributes redirectAttributes) {
+		try {
+			if (todoAttachmentService.delete(todoId, attachmentId)) {
+				redirectAttributes.addFlashAttribute("successMessage", "添付ファイルを削除しました");
+			} else {
+				redirectAttributes.addFlashAttribute("errorMessage", "添付ファイルが見つかりません");
+			}
+		} catch (IOException exception) {
+			logger.error("Attachment deletion failed for attachment {}", attachmentId, exception);
+			redirectAttributes.addFlashAttribute("errorMessage", "添付ファイルを削除できませんでした");
+		}
+		return "redirect:/todo/" + todoId + "/edit";
 	}
 
 	@PostMapping("/{id}/update")
@@ -201,6 +285,13 @@ public class TodoController {
 
 	@DeleteMapping("/{id}")
 	public String delete(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+		try {
+			todoAttachmentService.deleteAllForTodo(id);
+		} catch (IOException exception) {
+			logger.error("Could not remove attachments for todo {}", id, exception);
+			redirectAttributes.addFlashAttribute("errorMessage", "添付ファイルを削除できませんでした");
+			return "redirect:/todo";
+		}
 		if (todoService.deleteById(id)) {
 			redirectAttributes.addFlashAttribute("successMessage", "ToDoを削除しました");
 		} else {
@@ -215,6 +306,15 @@ public class TodoController {
 			RedirectAttributes redirectAttributes) {
 		if (ids == null || ids.isEmpty()) {
 			redirectAttributes.addFlashAttribute("errorMessage", "削除するToDoを選択してください");
+			return "redirect:/todo";
+		}
+		try {
+			for (Long id : ids) {
+				todoAttachmentService.deleteAllForTodo(id);
+			}
+		} catch (IOException exception) {
+			logger.error("Could not remove attachments for selected todos", exception);
+			redirectAttributes.addFlashAttribute("errorMessage", "添付ファイルを削除できませんでした");
 			return "redirect:/todo";
 		}
 		int deletedCount = todoService.deleteByIds(ids);

@@ -13,6 +13,11 @@
 <main class="container py-5">
 	<h1 class="h2 mb-4">ToDo編集</h1>
 
+	<div th:if="${successMessage}" class="alert alert-success" role="status"
+		 th:text="${successMessage}"></div>
+	<div th:if="${errorMessage}" class="alert alert-danger" role="alert"
+		 th:text="${errorMessage}"></div>
+
 	<form method="post" th:action="@{/todo/{id}/update(id=${todo.id})}">
 		<div class="mb-3">
 			<label for="title" class="form-label">タイトル</label>
@@ -50,6 +55,33 @@
 			<a class="btn btn-outline-secondary" href="/todo">戻る</a>
 		</div>
 	</form>
+
+	<section class="mt-5">
+		<h2 class="h4">添付ファイル</h2>
+		<form method="post" enctype="multipart/form-data"
+			  th:action="@{/todo/{id}/attachments(id=${todo.id})}" class="mb-3">
+			<div class="mb-3">
+				<label for="attachment-file" class="form-label">ファイル（PDF、JPEG、PNG、TXT／10MB以下）</label>
+				<input type="file" class="form-control" id="attachment-file" name="file"
+					   accept=".pdf,.jpg,.jpeg,.png,.txt,application/pdf,image/jpeg,image/png,text/plain"
+					   required>
+			</div>
+			<button class="btn btn-primary" type="submit">添付</button>
+		</form>
+
+		<p th:if="${#lists.isEmpty(attachments)}" class="text-muted">添付ファイルはありません。</p>
+		<ul th:unless="${#lists.isEmpty(attachments)}" class="list-group">
+			<li th:each="attachment : ${attachments}"
+				class="list-group-item d-flex justify-content-between align-items-center gap-3">
+				<a th:href="@{/todo/attachments/{id}/download(id=${attachment.id})}"
+				   th:text="${attachment.originalFilename}"></a>
+				<form method="post"
+					  th:action="@{/todo/{todoId}/attachments/{attachmentId}/delete(todoId=${todo.id},attachmentId=${attachment.id})}">
+					<button class="btn btn-outline-danger btn-sm" type="submit">削除</button>
+				</form>
+			</li>
+		</ul>
+	</section>
 </main>
 </body>
 </html>

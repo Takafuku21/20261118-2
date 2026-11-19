@@ -1,6 +1,8 @@
 package com.example.demo;
 
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -12,23 +14,33 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.example.demo.mapper.CategoryMapper;
+import com.example.demo.mapper.TodoAttachmentMapper;
 import com.example.demo.mapper.TodoMapper;
+import com.example.demo.service.VirusDetectedException;
+import com.example.demo.service.VirusScanner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = "app.file-storage-dir=target/test-uploads")
 @AutoConfigureMockMvc
 class DemoApplicationTests {
 
@@ -42,7 +54,13 @@ class DemoApplicationTests {
 	private TodoMapper todoMapper;
 
 	@Autowired
+	private TodoAttachmentMapper todoAttachmentMapper;
+
+	@Autowired
 	private CategoryMapper categoryMapper;
+
+	@MockitoBean
+	private VirusScanner virusScanner;
 
 	@Test
 	void contextLoads() {
@@ -595,7 +613,115 @@ class DemoApplicationTests {
 						"value=\"2026-12-01\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"completed\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"enctype=\"multipart/form-data\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"name=\"file\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"accept=\".pdf,.jpg,.jpeg,.png,.txt")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"action=\"/todo/" + todo.getId() + "/update\"")));
+	}
+
+	@Test
+	void attachmentUploadDownloadAndDeleteUseSanitizedMetadata() throws Exception {
+		Todo todo = new Todo();
+		todo.setTitle("添付ファイルテスト");
+		todoMapper.insert(todo);
+		byte[] fileContents = "安全なテキスト".getBytes(StandardCharsets.UTF_8);
+
+		mockMvc.perform(multipart("/todo/{todoId}/attachments", todo.getId())
+						.file(new MockMultipartFile(
+								"file", "../../secret.txt", "text/plain", fileContents)))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/todo/" + todo.getId() + "/edit"))
+				.andExpect(flash().attribute("successMessage", "ファイルを添付しました"));
+
+		TodoAttachment attachment = todoAttachmentMapper.findByTodoId(todo.getId()).get(0);
+		assertEquals("secret.txt", attachment.getOriginalFilename());
+		assertTrue(attachment.getStoredFilename().endsWith(".txt"));
+		assertTrue(Files.exists(Path.of("target/test-uploads", attachment.getStoredFilename())));
+
+		mockMvc.perform(get("/todo/{id}/edit", todo.getId()))
+				.andExpect(status().isOk())
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("secret.txt")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"/todo/attachments/" + attachment.getId() + "/download")));
+
+		mockMvc.perform(get("/todo/attachments/{id}/download", attachment.getId()))
+				.andExpect(status().isOk())
+				.andExpect(header().string("Content-Disposition",
+						org.hamcrest.Matchers.containsString("secret.txt")))
+				.andExpect(content().bytes(fileContents));
+
+		mockMvc.perform(post("/todo/{todoId}/attachments/{attachmentId}/delete",
+						todo.getId(), attachment.getId()))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(redirectedUrl("/todo/" + todo.getId() + "/edit"))
+				.andExpect(flash().attribute("successMessage", "添付ファイルを削除しました"));
+
+		assertNull(todoAttachmentMapper.findById(attachment.getId()));
+		assertFalse(Files.exists(Path.of("target/test-uploads", attachment.getStoredFilename())));
+	}
+
+	@Test
+	void deletingTodoAlsoRemovesItsAttachmentFiles() throws Exception {
+		Todo todo = new Todo();
+		todo.setTitle("添付付きToDo削除テスト");
+		todoMapper.insert(todo);
+		mockMvc.perform(multipart("/todo/{todoId}/attachments", todo.getId())
+						.file(new MockMultipartFile(
+								"file", "attached.txt", "text/plain", "添付内容".getBytes(StandardCharsets.UTF_8))))
+				.andExpect(status().is3xxRedirection());
+
+		TodoAttachment attachment = todoAttachmentMapper.findByTodoId(todo.getId()).get(0);
+		Path storedFile = Path.of("target/test-uploads", attachment.getStoredFilename());
+		assertTrue(Files.exists(storedFile));
+
+		mockMvc.perform(post("/todo/{id}", todo.getId()).param("_method", "delete"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(flash().attribute("successMessage", "ToDoを削除しました"));
+
+		assertFalse(Files.exists(storedFile));
+		assertNull(todoAttachmentMapper.findById(attachment.getId()));
+	}
+
+	@Test
+	void attachmentUploadRejectsDisallowedTypesAndMismatchedContent() throws Exception {
+		Todo todo = new Todo();
+		todo.setTitle("添付形式チェックテスト");
+		todoMapper.insert(todo);
+
+		mockMvc.perform(multipart("/todo/{todoId}/attachments", todo.getId())
+						.file(new MockMultipartFile(
+								"file", "malware.exe", "application/octet-stream", new byte[] {1, 2, 3})))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(flash().attribute("errorMessage",
+						"許可されている形式はPDF、JPEG、PNG、TXTです"));
+
+		mockMvc.perform(multipart("/todo/{todoId}/attachments", todo.getId())
+						.file(new MockMultipartFile(
+								"file", "picture.png", "image/png", "not a PNG".getBytes(StandardCharsets.UTF_8))))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(flash().attribute("errorMessage", "ファイル内容が拡張子と一致しません"));
+
+		assertTrue(todoAttachmentMapper.findByTodoId(todo.getId()).isEmpty());
+	}
+
+	@Test
+	void attachmentUploadRejectsFilesFlaggedByVirusScanner() throws Exception {
+		Todo todo = new Todo();
+		todo.setTitle("ウイルス検査テスト");
+		todoMapper.insert(todo);
+		doThrow(new VirusDetectedException()).when(virusScanner).scan(any(byte[].class));
+
+		mockMvc.perform(multipart("/todo/{todoId}/attachments", todo.getId())
+						.file(new MockMultipartFile(
+								"file", "infected.txt", "text/plain", "malware".getBytes(StandardCharsets.UTF_8))))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(flash().attribute("errorMessage",
+						"ウイルスが検出されたため、添付ファイルを拒否しました"));
+
+		assertTrue(todoAttachmentMapper.findByTodoId(todo.getId()).isEmpty());
 	}
 
 	@Test
