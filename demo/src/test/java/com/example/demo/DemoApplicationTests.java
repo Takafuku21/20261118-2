@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.example.demo.mapper.TodoMapper;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -52,7 +53,7 @@ class DemoApplicationTests {
 		assertTrue(todoMapper.findAll().stream()
 				.anyMatch(found -> found.getId().equals(todo.getId())
 						&& found.getTitle().equals(todo.getTitle())
-						&& found.getCompleted().equals(todo.getCompleted())));
+						&& found.isCompleted() == todo.isCompleted()));
 	}
 
 	@Test
@@ -67,6 +68,17 @@ class DemoApplicationTests {
 		assertNotNull(found);
 		assertEquals(todo.getId(), found.getId());
 		assertEquals(todo.getTitle(), found.getTitle());
+	}
+
+	@Test
+	void isCompletedReflectsCompletionFlag() {
+		Todo todo = new Todo();
+
+		assertFalse(todo.isCompleted());
+		todo.setCompleted(true);
+		assertTrue(todo.isCompleted());
+		todo.setCompleted(false);
+		assertFalse(todo.isCompleted());
 	}
 
 	@Test
@@ -128,6 +140,11 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(incompleteTodo.getId().toString())))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了一覧テスト")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了一覧テスト")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"class=\"badge bg-success\">完了</span>")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"class=\"badge bg-secondary\">未完了</span>")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("class=\"completed-row\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("未完了")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("完了")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("操作")))

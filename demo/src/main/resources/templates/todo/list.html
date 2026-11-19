@@ -8,6 +8,12 @@
 		  rel="stylesheet"
 		  integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
 		  crossorigin="anonymous">
+	<style>
+		.completed-row > * {
+			background-color: #e9ecef !important;
+			color: #6c757d;
+		}
+	</style>
 </head>
 <body>
 <main class="container py-5">
@@ -39,13 +45,17 @@
 		</tr>
 		</thead>
 		<tbody>
-		<tr th:each="todo : ${todos}">
+		<tr th:each="todo : ${todos}"
+			th:classappend="${todo.completed} ? 'completed-row' : ''">
 			<td th:text="${todo.id}"></td>
 			<td>
 				<span th:text="${todo.title}"
 					  th:classappend="${todo.completed} ? 'text-decoration-line-through text-muted' : ''"></span>
 			</td>
-			<td th:text="${todo.completed} ? '完了' : '未完了'"></td>
+			<td>
+				<span th:if="${todo.completed}" class="badge bg-success">完了</span>
+				<span th:unless="${todo.completed}" class="badge bg-secondary">未完了</span>
+			</td>
 			<td>
 				<div class="d-flex gap-2">
 					<a class="btn btn-outline-primary btn-sm"
