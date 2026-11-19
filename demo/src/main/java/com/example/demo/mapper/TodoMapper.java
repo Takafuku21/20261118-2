@@ -20,6 +20,12 @@ public interface TodoMapper {
 			@Param("limit") int limit,
 			@Param("offset") long offset);
 
+	List<Todo> findForExport(
+			@Param("keyword") String keyword,
+			@Param("categoryId") Long categoryId,
+			@Param("sort") String sort,
+			@Param("direction") String direction);
+
 	long countFiltered(
 			@Param("keyword") String keyword,
 			@Param("categoryId") Long categoryId);

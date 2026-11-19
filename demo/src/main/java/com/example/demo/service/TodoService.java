@@ -34,6 +34,10 @@ public class TodoService {
 		return new PageImpl<>(todos, pageable, todoMapper.countFiltered(keyword, categoryId));
 	}
 
+	public List<Todo> findForExport(String keyword, Long categoryId, String sort, String direction) {
+		return todoMapper.findForExport(keyword, categoryId, sort, direction);
+	}
+
 	public Todo findById(Long id) {
 		return todoMapper.findById(id);
 	}

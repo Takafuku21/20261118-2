@@ -6,6 +6,7 @@
 	<resultMap id="todoResultMap" type="com.example.demo.Todo">
 		<id property="id" column="id"/>
 		<result property="title" column="title"/>
+		<result property="author" column="author"/>
 		<result property="completed" column="completed"/>
 		<result property="createdAt" column="created_at"/>
 		<result property="deadline" column="deadline"/>
@@ -19,8 +20,19 @@
 	</resultMap>
 
 	<sql id="todoSelectColumns">
-		t.id, t.title, t.completed, t.created_at, t.priority, t.deadline,
+		t.id, t.title, t.author, t.completed, t.created_at, t.priority, t.deadline,
 		c.id AS category_id, c.name AS category_name, c.color AS category_color
+	</sql>
+
+	<sql id="todoFilters">
+		<where>
+			<if test="keyword != null and keyword != ''">
+				t.title LIKE CONCAT('%', #{keyword}, '%')
+			</if>
+			<if test="categoryId != null">
+				AND t.category_id = #{categoryId}
+			</if>
+		</where>
 	</sql>
 
 	<sql id="todoOrderBy">
@@ -57,28 +69,22 @@
 		SELECT <include refid="todoSelectColumns"/>
 		FROM todos t
 		LEFT JOIN categories c ON c.id = t.category_id
-		<where>
-			<if test="keyword != null and keyword != ''">
-				t.title LIKE CONCAT('%', #{keyword}, '%')
-			</if>
-			<if test="categoryId != null">
-				AND t.category_id = #{categoryId}
-			</if>
-		</where>
+		<include refid="todoFilters"/>
 		<include refid="todoOrderBy"/>
 		LIMIT #{limit} OFFSET #{offset}
 	</select>
 
+	<select id="findForExport" resultMap="todoResultMap">
+		SELECT <include refid="todoSelectColumns"/>
+		FROM todos t
+		LEFT JOIN categories c ON c.id = t.category_id
+		<include refid="todoFilters"/>
+		<include refid="todoOrderBy"/>
+	</select>
+
 	<select id="countFiltered" resultType="long">
 		SELECT COUNT(*) FROM todos t
-		<where>
-			<if test="keyword != null and keyword != ''">
-				t.title LIKE CONCAT('%', #{keyword}, '%')
-			</if>
-			<if test="categoryId != null">
-				AND t.category_id = #{categoryId}
-			</if>
-		</where>
+		<include refid="todoFilters"/>
 	</select>
 
 	<select id="searchByTitle" resultMap="todoResultMap">
@@ -98,8 +104,8 @@
 
 	<insert id="insert" parameterType="com.example.demo.Todo"
 			useGeneratedKeys="true" keyProperty="id">
-		INSERT INTO todos (title, completed, priority, category_id, deadline)
-		VALUES (#{title}, #{completed}, #{priority}, #{category.id}, #{deadline})
+		INSERT INTO todos (title, author, completed, priority, category_id, deadline)
+		VALUES (#{title}, #{author}, #{completed}, #{priority}, #{category.id}, #{deadline})
 	</insert>
 
 	<delete id="deleteById" parameterType="long">

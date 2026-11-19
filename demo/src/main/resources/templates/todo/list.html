@@ -71,6 +71,12 @@
 			<a class="btn btn-outline-secondary"
 			   th:href="@{/todo(page=0,sort=${sort},direction=${direction})}">クリア</a>
 		</div>
+		<div class="col-auto">
+			<a class="btn btn-success"
+			   th:href="@{/todo/export(keyword=${keyword},categoryId=${categoryId},sort=${sort},direction=${direction})}">
+				CSVダウンロード
+			</a>
+		</div>
 	</form>
 	<p class="text-muted mb-3">
 		<span th:if="${keyword != null}">検索結果: </span>

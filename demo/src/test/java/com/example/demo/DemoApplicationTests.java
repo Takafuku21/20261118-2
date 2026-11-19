@@ -1,5 +1,6 @@
 package com.example.demo;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -517,7 +518,61 @@ class DemoApplicationTests {
 						"selected=\"selected\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"categoryId=" + selectedCategory.getId())))
-				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=title")));
+				.andExpect(content().string(org.hamcrest.Matchers.containsString("sort=title")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"/todo/export?keyword=%E3%82%AB%E3%83%86%E3%82%B4%E3%83%AA%E6%A4%9C%E7%B4%A2&amp;categoryId="
+								+ selectedCategory.getId() + "&amp;sort=title")));
+	}
+
+	@Test
+	void csvExportIncludesUtf8BomEscapesFieldsAndPreservesFilters() throws Exception {
+		List<Category> categories = categoryMapper.findAll();
+		Category selectedCategory = categories.get(0);
+
+		Todo matchingTodo = new Todo();
+		matchingTodo.setTitle("CSV, \"タイトル\"");
+		matchingTodo.setAuthor("作成者, \"A\"");
+		matchingTodo.setCompleted(true);
+		matchingTodo.setCategory(selectedCategory);
+		todoMapper.insert(matchingTodo);
+
+		Todo wrongCategoryTodo = new Todo();
+		wrongCategoryTodo.setTitle("CSVカテゴリ対象外");
+		wrongCategoryTodo.setCategory(categories.get(1));
+		todoMapper.insert(wrongCategoryTodo);
+
+		Todo wrongKeywordTodo = new Todo();
+		wrongKeywordTodo.setTitle("別キーワード");
+		wrongKeywordTodo.setCategory(selectedCategory);
+		todoMapper.insert(wrongKeywordTodo);
+
+		var result = mockMvc.perform(get("/todo/export")
+						.param("keyword", "CSV")
+						.param("categoryId", selectedCategory.getId().toString())
+						.param("sort", "title")
+						.param("direction", "asc"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(
+						org.springframework.http.MediaType.parseMediaType("text/csv")))
+				.andReturn();
+
+		byte[] responseBytes = result.getResponse().getContentAsByteArray();
+		assertEquals(0xEF, responseBytes[0] & 0xFF);
+		assertEquals(0xBB, responseBytes[1] & 0xFF);
+		assertEquals(0xBF, responseBytes[2] & 0xFF);
+
+		String csv = new String(responseBytes, StandardCharsets.UTF_8);
+		assertTrue(csv.startsWith("\uFEFF"));
+		assertTrue(csv.contains("\"ID\",\"タイトル\",\"登録者\",\"ステータス\",\"作成日\"\r\n"));
+		assertTrue(csv.contains("\"" + matchingTodo.getId()
+				+ "\",\"CSV, \"\"タイトル\"\"\",\"作成者, \"\"A\"\"\",\"完了\",\""));
+		assertFalse(csv.contains("CSVカテゴリ対象外"));
+		assertFalse(csv.contains("別キーワード"));
+
+		String contentDisposition = result.getResponse().getHeader("Content-Disposition");
+		assertTrue(contentDisposition != null && contentDisposition.contains(
+				"todo_" + LocalDate.now().format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE)
+						+ ".csv"));
 	}
 
 	@Test
@@ -725,6 +780,8 @@ class DemoApplicationTests {
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(">仕事</p>")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"name=\"categoryId\"")))
+				.andExpect(content().string(org.hamcrest.Matchers.containsString(
+						"name=\"author\" value=\"作成者\"")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString("2026年12月24日")))
 				.andExpect(content().string(org.hamcrest.Matchers.containsString(
 						"name=\"deadline\" value=\"2026-12-24\"")))
@@ -764,6 +821,7 @@ class DemoApplicationTests {
 		Category category = categoryMapper.findAll().get(0);
 		mockMvc.perform(post("/todo/complete")
 						.param("title", title)
+						.param("author", "登録者テスト")
 						.param("priority", "LOW")
 						.param("categoryId", category.getId().toString())
 						.param("deadline", "2026-12-25"))
@@ -776,11 +834,12 @@ class DemoApplicationTests {
 				"SELECT priority FROM todos WHERE title = ?", String.class, title));
 		assertEquals(category.getId(), jdbcTemplate.queryForObject(
 				"SELECT category_id FROM todos WHERE title = ?", Long.class, title));
-		assertEquals(LocalDate.of(2026, 12, 25), todoMapper.findAll("title", "asc").stream()
+		Todo registeredTodo = todoMapper.findAll("title", "asc").stream()
 				.filter(todo -> todo.getTitle().equals(title))
 				.findFirst()
-				.orElseThrow()
-				.getDeadline());
+				.orElseThrow();
+		assertEquals("登録者テスト", registeredTodo.getAuthor());
+		assertEquals(LocalDate.of(2026, 12, 25), registeredTodo.getDeadline());
 	}
 
 }

@@ -1,6 +1,8 @@
 package com.example.demo;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import com.example.demo.service.TodoService;
@@ -10,6 +12,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -27,6 +32,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class TodoController {
 
 	private static final int PAGE_SIZE = 10;
+	private static final DateTimeFormatter CSV_DATE_FORMAT =
+			DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 	private final TodoService todoService;
 	private final CategoryService categoryService;
@@ -44,15 +51,9 @@ public class TodoController {
 			@RequestParam(required = false, defaultValue = "desc") String direction,
 			@PageableDefault(size = PAGE_SIZE) Pageable pageable,
 			Model model) {
-		String normalizedKeyword = keyword == null ? null : keyword.trim();
-		if (normalizedKeyword != null && normalizedKeyword.isEmpty()) {
-			normalizedKeyword = null;
-		}
-		String normalizedSort = switch (sort) {
-			case "title", "completed", "priority", "deadline" -> sort;
-			default -> "createdAt";
-		};
-		String normalizedDirection = "asc".equalsIgnoreCase(direction) ? "asc" : "desc";
+		String normalizedKeyword = normalizeKeyword(keyword);
+		String normalizedSort = normalizeSort(sort);
+		String normalizedDirection = normalizeDirection(direction);
 		Pageable fixedPageable = PageRequest.of(pageable.getPageNumber(), PAGE_SIZE);
 		Page<Todo> todoPage = todoService.findPage(
 				normalizedKeyword, categoryId, fixedPageable, normalizedSort, normalizedDirection);
@@ -79,6 +80,25 @@ public class TodoController {
 		model.addAttribute("nextDeadlineDirection",
 				"deadline".equals(normalizedSort) && "asc".equals(normalizedDirection) ? "desc" : "asc");
 		return "todo/list";
+	}
+
+	@GetMapping("/export")
+	public ResponseEntity<byte[]> export(
+			@RequestParam(required = false) String keyword,
+			@RequestParam(required = false) Long categoryId,
+			@RequestParam(required = false, defaultValue = "createdAt") String sort,
+			@RequestParam(required = false, defaultValue = "desc") String direction) {
+		List<Todo> todos = todoService.findForExport(
+				normalizeKeyword(keyword),
+				categoryId,
+				normalizeSort(sort),
+				normalizeDirection(direction));
+		byte[] csvBytes = ("\uFEFF" + toCsv(todos)).getBytes(StandardCharsets.UTF_8);
+		String filename = "todo_" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + ".csv";
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.parseMediaType("text/csv; charset=UTF-8"));
+		headers.set(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"");
+		return ResponseEntity.ok().headers(headers).body(csvBytes);
 	}
 
 	@GetMapping("/new")
@@ -158,6 +178,7 @@ public class TodoController {
 	@PostMapping("/complete")
 	public String complete(
 			@RequestParam("title") String title,
+			@RequestParam(required = false) String author,
 			@RequestParam(name = "priority", defaultValue = "MEDIUM") Priority priority,
 			@RequestParam(required = false) Long categoryId,
 			@RequestParam(required = false) LocalDate deadline,
@@ -169,6 +190,7 @@ public class TodoController {
 		}
 		Todo todo = new Todo();
 		todo.setTitle(title);
+		todo.setAuthor(author);
 		todo.setCompleted(false);
 		todo.setPriority(priority);
 		todo.setCategory(category);
@@ -203,5 +225,51 @@ public class TodoController {
 			redirectAttributes.addFlashAttribute("errorMessage", "選択したToDoを削除できませんでした");
 		}
 		return "redirect:/todo";
+	}
+
+	private static String normalizeKeyword(String keyword) {
+		String normalizedKeyword = keyword == null ? null : keyword.trim();
+		return normalizedKeyword == null || normalizedKeyword.isEmpty() ? null : normalizedKeyword;
+	}
+
+	private static String normalizeSort(String sort) {
+		return switch (sort) {
+			case "title", "completed", "priority", "deadline" -> sort;
+			default -> "createdAt";
+		};
+	}
+
+	private static String normalizeDirection(String direction) {
+		return "asc".equalsIgnoreCase(direction) ? "asc" : "desc";
+	}
+
+	private static String toCsv(List<Todo> todos) {
+		StringBuilder csv = new StringBuilder();
+		appendCsvRow(csv, "ID", "タイトル", "登録者", "ステータス", "作成日");
+		for (Todo todo : todos) {
+			String createdAt = todo.getCreatedAt() == null
+					? ""
+					: todo.getCreatedAt().format(CSV_DATE_FORMAT);
+			appendCsvRow(
+					csv,
+					todo.getId() == null ? "" : todo.getId().toString(),
+					todo.getTitle(),
+					todo.getAuthor(),
+					todo.isCompleted() ? "完了" : "未完了",
+					createdAt);
+		}
+		return csv.toString();
+	}
+
+	private static void appendCsvRow(StringBuilder csv, String... values) {
+		for (int index = 0; index < values.length; index++) {
+			if (index > 0) {
+				csv.append(',');
+			}
+			csv.append('"')
+					.append(values[index] == null ? "" : values[index].replace("\"", "\"\""))
+					.append('"');
+		}
+		csv.append("\r\n");
 	}
 }
