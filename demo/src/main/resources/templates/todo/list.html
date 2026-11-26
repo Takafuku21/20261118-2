@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja" xmlns:th="http://www.thymeleaf.org">
+<html lang="ja" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -36,6 +36,12 @@
 </head>
 <body>
 <main class="container py-5">
+	<div class="d-flex justify-content-end align-items-center gap-3 mb-3">
+		<span sec:authentication="name" class="text-muted"></span>
+		<form method="post" th:action="@{/logout}" class="m-0">
+			<button type="submit" class="btn btn-outline-secondary">ログアウト</button>
+		</form>
+	</div>
 	<div class="d-flex justify-content-between align-items-center mb-4">
 		<h1 class="h2 mb-0">ToDo一覧</h1>
 		<a class="btn btn-primary" href="/todo/new">新規登録</a>
@@ -84,7 +90,7 @@
 		<span th:text="${startItem}">0</span>-<span th:text="${endItem}">0</span>件を表示
 	</p>
 
-	<form id="bulk-delete-form" method="post" action="/todo/bulk-delete"
+	<form id="bulk-delete-form" method="post" th:action="@{/todo/bulk-delete}"
 		  class="mb-3" th:if="${!#lists.isEmpty(todos)}">
 		<button type="button" id="bulk-delete-trigger" class="btn btn-danger" disabled>
 			選択した項目を削除
