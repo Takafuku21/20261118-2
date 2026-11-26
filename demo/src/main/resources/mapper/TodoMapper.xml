@@ -5,6 +5,7 @@
 <mapper namespace="com.example.demo.mapper.TodoMapper">
 	<resultMap id="todoResultMap" type="com.example.demo.Todo">
 		<id property="id" column="id"/>
+		<result property="userId" column="user_id"/>
 		<result property="title" column="title"/>
 		<result property="author" column="author"/>
 		<result property="completed" column="completed"/>
@@ -20,14 +21,15 @@
 	</resultMap>
 
 	<sql id="todoSelectColumns">
-		t.id, t.title, t.author, t.completed, t.created_at, t.priority, t.deadline,
+		t.id, t.user_id, t.title, t.author, t.completed, t.created_at, t.priority, t.deadline,
 		c.id AS category_id, c.name AS category_name, c.color AS category_color
 	</sql>
 
 	<sql id="todoFilters">
 		<where>
+			t.user_id = #{userId}
 			<if test="keyword != null and keyword != ''">
-				t.title LIKE CONCAT('%', #{keyword}, '%')
+				AND t.title LIKE CONCAT('%', #{keyword}, '%')
 			</if>
 			<if test="categoryId != null">
 				AND t.category_id = #{categoryId}
@@ -62,6 +64,7 @@
 		SELECT <include refid="todoSelectColumns"/>
 		FROM todos t
 		LEFT JOIN categories c ON c.id = t.category_id
+		WHERE t.user_id = #{userId}
 		<include refid="todoOrderBy"/>
 	</select>
 
@@ -91,7 +94,7 @@
 		SELECT <include refid="todoSelectColumns"/>
 		FROM todos t
 		LEFT JOIN categories c ON c.id = t.category_id
-		WHERE t.title LIKE CONCAT('%', #{keyword}, '%')
+		WHERE t.user_id = #{userId} AND t.title LIKE CONCAT('%', #{keyword}, '%')
 		<include refid="todoOrderBy"/>
 	</select>
 
@@ -104,18 +107,18 @@
 
 	<insert id="insert" parameterType="com.example.demo.Todo"
 			useGeneratedKeys="true" keyProperty="id">
-		INSERT INTO todos (title, author, completed, priority, category_id, deadline)
-		VALUES (#{title}, #{author}, #{completed}, #{priority}, #{category.id}, #{deadline})
+		INSERT INTO todos (user_id, title, author, completed, priority, category_id, deadline)
+		VALUES (#{userId}, #{title}, #{author}, #{completed}, #{priority}, #{category.id}, #{deadline})
 	</insert>
 
 	<delete id="deleteById" parameterType="long">
 		DELETE FROM todos
-		WHERE id = #{id}
+		WHERE id = #{id} AND user_id = #{userId}
 	</delete>
 
 	<delete id="deleteByIds">
 		DELETE FROM todos
-		WHERE id IN
+		WHERE user_id = #{userId} AND id IN
 		<foreach collection="ids" item="id" open="(" separator="," close=")">
 			#{id}
 		</foreach>
@@ -123,11 +126,16 @@
 
 	<update id="update" parameterType="com.example.demo.Todo">
 		UPDATE todos
-		SET title = #{title},
-			completed = #{completed},
-			priority = #{priority},
-			category_id = #{category.id},
-			deadline = #{deadline}
-		WHERE id = #{id}
+		SET title = #{todo.title},
+			completed = #{todo.completed},
+			priority = #{todo.priority},
+			category_id = #{todo.category.id},
+			deadline = #{todo.deadline}
+		WHERE id = #{todo.id} AND user_id = #{userId}
+	</update>
+
+	<update id="toggleCompleted">
+		UPDATE todos SET completed = NOT completed
+		WHERE id = #{id} AND user_id = #{userId}
 	</update>
 </mapper>

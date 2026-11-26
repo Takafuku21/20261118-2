@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -70,13 +71,14 @@ public class TodoController {
 			@RequestParam(required = false, defaultValue = "createdAt") String sort,
 			@RequestParam(required = false, defaultValue = "desc") String direction,
 			@PageableDefault(size = PAGE_SIZE) Pageable pageable,
+			@AuthenticationPrincipal AuthenticatedUser user,
 			Model model) {
 		String normalizedKeyword = normalizeKeyword(keyword);
 		String normalizedSort = normalizeSort(sort);
 		String normalizedDirection = normalizeDirection(direction);
 		Pageable fixedPageable = PageRequest.of(pageable.getPageNumber(), PAGE_SIZE);
 		Page<Todo> todoPage = todoService.findPage(
-				normalizedKeyword, categoryId, fixedPageable, normalizedSort, normalizedDirection);
+				normalizedKeyword, categoryId, fixedPageable, normalizedSort, normalizedDirection, user.getId());
 		model.addAttribute("todos", todoPage.getContent());
 		model.addAttribute("page", todoPage);
 		model.addAttribute("startItem", todoPage.isEmpty()
@@ -107,12 +109,13 @@ public class TodoController {
 			@RequestParam(required = false) String keyword,
 			@RequestParam(required = false) Long categoryId,
 			@RequestParam(required = false, defaultValue = "createdAt") String sort,
-			@RequestParam(required = false, defaultValue = "desc") String direction) {
+			@RequestParam(required = false, defaultValue = "desc") String direction,
+			@AuthenticationPrincipal AuthenticatedUser user) {
 		List<Todo> todos = todoService.findForExport(
 				normalizeKeyword(keyword),
 				categoryId,
 				normalizeSort(sort),
-				normalizeDirection(direction));
+				normalizeDirection(direction), user.getId());
 		byte[] csvBytes = ("\uFEFF" + toCsv(todos)).getBytes(StandardCharsets.UTF_8);
 		String filename = "todo_" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + ".csv";
 		HttpHeaders headers = new HttpHeaders();
@@ -170,6 +173,7 @@ public class TodoController {
 		if (attachment == null) {
 			return ResponseEntity.notFound().build();
 		}
+		todoService.findById(attachment.getTodoId());
 		try {
 			Resource resource = fileStorageService.loadAsResource(attachment.getStoredFilename());
 			ContentDisposition disposition = ContentDisposition.attachment()
@@ -190,6 +194,7 @@ public class TodoController {
 			@PathVariable Long todoId,
 			@PathVariable Long attachmentId,
 			RedirectAttributes redirectAttributes) {
+		todoService.findById(todoId);
 		try {
 			if (todoAttachmentService.delete(todoId, attachmentId)) {
 				redirectAttributes.addFlashAttribute("successMessage", "添付ファイルを削除しました");
@@ -211,7 +216,8 @@ public class TodoController {
 			@RequestParam(name = "priority", defaultValue = "MEDIUM") Priority priority,
 			@RequestParam(required = false) Long categoryId,
 			@RequestParam(required = false) LocalDate deadline,
-			RedirectAttributes redirectAttributes) {
+			RedirectAttributes redirectAttributes,
+			@AuthenticationPrincipal AuthenticatedUser user) {
 		Category category = categoryId == null ? null : categoryService.findById(categoryId);
 		if (categoryId != null && category == null) {
 			redirectAttributes.addFlashAttribute("errorMessage", "カテゴリを選択し直してください");
@@ -224,7 +230,7 @@ public class TodoController {
 		todo.setPriority(priority);
 		todo.setCategory(category);
 		todo.setDeadline(deadline);
-		if (todoService.update(todo)) {
+		if (todoService.update(id, todo, user.getId())) {
 			redirectAttributes.addFlashAttribute("successMessage", "更新が完了しました");
 		} else {
 			redirectAttributes.addFlashAttribute("errorMessage", "更新に失敗しました");
@@ -233,8 +239,11 @@ public class TodoController {
 	}
 
 	@PostMapping("/{id}/toggle")
-	public String toggleCompleted(@PathVariable Long id, RedirectAttributes redirectAttributes) {
-		if (!todoService.toggleCompleted(id)) {
+	public String toggleCompleted(
+			@PathVariable Long id,
+			RedirectAttributes redirectAttributes,
+			@AuthenticationPrincipal AuthenticatedUser user) {
+		if (!todoService.toggleCompleted(id, user.getId())) {
 			redirectAttributes.addFlashAttribute("errorMessage", "完了状態の更新に失敗しました");
 		}
 		return "redirect:/todo";
@@ -266,13 +275,15 @@ public class TodoController {
 			@RequestParam(name = "priority", defaultValue = "MEDIUM") Priority priority,
 			@RequestParam(required = false) Long categoryId,
 			@RequestParam(required = false) LocalDate deadline,
-			RedirectAttributes redirectAttributes) {
+			RedirectAttributes redirectAttributes,
+			@AuthenticationPrincipal AuthenticatedUser user) {
 		Category category = categoryId == null ? null : categoryService.findById(categoryId);
 		if (categoryId != null && category == null) {
 			redirectAttributes.addFlashAttribute("errorMessage", "カテゴリを選択し直してください");
 			return "redirect:/todo/new";
 		}
 		Todo todo = new Todo();
+		todo.setUserId(user.getId());
 		todo.setTitle(title);
 		todo.setAuthor(author);
 		todo.setCompleted(false);
@@ -284,7 +295,11 @@ public class TodoController {
 	}
 
 	@DeleteMapping("/{id}")
-	public String delete(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+	public String delete(
+			@PathVariable Long id,
+			RedirectAttributes redirectAttributes,
+			@AuthenticationPrincipal AuthenticatedUser user) {
+		todoService.findById(id); // Enforce ownership before touching attachment files.
 		try {
 			todoAttachmentService.deleteAllForTodo(id);
 		} catch (IOException exception) {
@@ -292,7 +307,7 @@ public class TodoController {
 			redirectAttributes.addFlashAttribute("errorMessage", "添付ファイルを削除できませんでした");
 			return "redirect:/todo";
 		}
-		if (todoService.deleteById(id)) {
+		if (todoService.deleteById(id, user.getId())) {
 			redirectAttributes.addFlashAttribute("successMessage", "ToDoを削除しました");
 		} else {
 			redirectAttributes.addFlashAttribute("errorMessage", "削除に失敗しました");
@@ -303,10 +318,15 @@ public class TodoController {
 	@PostMapping("/bulk-delete")
 	public String bulkDelete(
 			@RequestParam(name = "ids", required = false) List<Long> ids,
-			RedirectAttributes redirectAttributes) {
+			RedirectAttributes redirectAttributes,
+			@AuthenticationPrincipal AuthenticatedUser user) {
 		if (ids == null || ids.isEmpty()) {
 			redirectAttributes.addFlashAttribute("errorMessage", "削除するToDoを選択してください");
 			return "redirect:/todo";
+		}
+		// Validate the entire selection before removing any files or records.
+		for (Long id : ids) {
+			todoService.findById(id);
 		}
 		try {
 			for (Long id : ids) {
@@ -317,7 +337,7 @@ public class TodoController {
 			redirectAttributes.addFlashAttribute("errorMessage", "添付ファイルを削除できませんでした");
 			return "redirect:/todo";
 		}
-		int deletedCount = todoService.deleteByIds(ids);
+		int deletedCount = todoService.deleteByIds(ids, user.getId());
 		if (deletedCount > 0) {
 			redirectAttributes.addFlashAttribute(
 					"successMessage", "選択したToDoを" + deletedCount + "件削除しました");

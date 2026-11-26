@@ -9,6 +9,7 @@ import lombok.Data;
 public class Todo {
 
 	private Long id;
+	private Long userId;
 	private String title;
 	private String author;
 	private boolean completed;

@@ -9,12 +9,14 @@ import com.example.demo.Todo;
 public interface TodoMapper {
 
 	List<Todo> findAll(
+			@Param("userId") Long userId,
 			@Param("sort") String sort,
 			@Param("direction") String direction);
 
 	List<Todo> findPage(
 			@Param("keyword") String keyword,
 			@Param("categoryId") Long categoryId,
+			@Param("userId") Long userId,
 			@Param("sort") String sort,
 			@Param("direction") String direction,
 			@Param("limit") int limit,
@@ -23,25 +25,30 @@ public interface TodoMapper {
 	List<Todo> findForExport(
 			@Param("keyword") String keyword,
 			@Param("categoryId") Long categoryId,
+			@Param("userId") Long userId,
 			@Param("sort") String sort,
 			@Param("direction") String direction);
 
 	long countFiltered(
 			@Param("keyword") String keyword,
-			@Param("categoryId") Long categoryId);
+			@Param("categoryId") Long categoryId,
+			@Param("userId") Long userId);
 
 	List<Todo> searchByTitle(
 			@Param("keyword") String keyword,
+			@Param("userId") Long userId,
 			@Param("sort") String sort,
 			@Param("direction") String direction);
 
-	Todo findById(Long id);
+	Todo findById(@Param("id") Long id);
 
 	int insert(Todo todo);
 
-	int deleteById(Long id);
+	int deleteById(@Param("id") Long id, @Param("userId") Long userId);
 
-	int deleteByIds(@Param("ids") List<Long> ids);
+	int deleteByIds(@Param("ids") List<Long> ids, @Param("userId") Long userId);
 
-	int update(Todo todo);
+	int update(@Param("todo") Todo todo, @Param("userId") Long userId);
+
+	int toggleCompleted(@Param("id") Long id, @Param("userId") Long userId);
 }

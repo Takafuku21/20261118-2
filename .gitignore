@@ -1,0 +1,5 @@
+# Local H2 database files (may be locked while the application is running).
+*.mv.db
+*.trace.db
+*.lock.db
+*.temp.db

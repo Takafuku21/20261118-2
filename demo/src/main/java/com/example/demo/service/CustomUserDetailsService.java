@@ -2,8 +2,7 @@ package com.example.demo.service;
 
 import com.example.demo.UserAccount;
 import com.example.demo.mapper.UserMapper;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
+import com.example.demo.AuthenticatedUser;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -28,9 +27,6 @@ public class CustomUserDetailsService implements UserDetailsService {
 		String authority = account.getRole().startsWith("ROLE_")
 				? account.getRole()
 				: "ROLE_" + account.getRole();
-		return User.withUsername(account.getUsername())
-				.password(account.getPassword())
-				.authorities(new SimpleGrantedAuthority(authority))
-				.build();
+		return new AuthenticatedUser(account, authority);
 	}
 }

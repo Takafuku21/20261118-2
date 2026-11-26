@@ -9,6 +9,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.filter.HiddenHttpMethodFilter;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,7 +47,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest(properties = "app.file-storage-dir=target/test-uploads")
+@SpringBootTest(properties = {
+		"app.file-storage-dir=target/test-uploads",
+		"spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1"
+})
 @AutoConfigureMockMvc
 class DemoApplicationTests {
 
@@ -62,6 +72,31 @@ class DemoApplicationTests {
 	@MockitoBean
 	private VirusScanner virusScanner;
 
+	private Long testUserId;
+
+	@Autowired
+	private WebApplicationContext applicationContext;
+
+	@BeforeEach
+	void prepareAuthenticatedUser() {
+		jdbcTemplate.update("DELETE FROM todos");
+		jdbcTemplate.update("DELETE FROM users WHERE username = ?", "integration-test-user");
+		jdbcTemplate.update("INSERT INTO users (username, password, role) VALUES (?, ?, ?)",
+				"integration-test-user", "unused-test-password", "USER");
+		testUserId = jdbcTemplate.queryForObject(
+				"SELECT id FROM users WHERE username = ?", Long.class, "integration-test-user");
+		UserAccount account = new UserAccount();
+		account.setId(testUserId);
+		account.setUsername("integration-test-user");
+		account.setPassword("unused-test-password");
+		account.setRole("USER");
+		mockMvc = MockMvcBuilders.webAppContextSetup(applicationContext)
+				.addFilters(new HiddenHttpMethodFilter())
+				.defaultRequest(get("/").with(user(new AuthenticatedUser(account, "ROLE_USER"))).with(csrf()))
+				.apply(springSecurity())
+				.build();
+	}
+
 	@Test
 	void contextLoads() {
 	}
@@ -80,12 +115,13 @@ class DemoApplicationTests {
 	@Test
 	void todoMapperInsertsAndFindsTodos() {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 		todo.setTitle("MyBatisテスト");
 		todo.setCompleted(false);
 
 		assertEquals(1, todoMapper.insert(todo));
 		assertNotNull(todo.getId());
-		assertTrue(todoMapper.findAll("createdAt", "desc").stream()
+		assertTrue(todoMapper.findAll(testUserId, "createdAt", "desc").stream()
 				.anyMatch(found -> found.getId().equals(todo.getId())
 						&& found.getTitle().equals(todo.getTitle())
 						&& found.isCompleted() == todo.isCompleted()));
@@ -94,6 +130,7 @@ class DemoApplicationTests {
 	@Test
 	void todoMapperFindsTodoById() {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 		todo.setTitle("ID検索テスト");
 		todo.setCompleted(false);
 		todoMapper.insert(todo);
@@ -110,6 +147,7 @@ class DemoApplicationTests {
 	void todoMapperLoadsCategoryWithTodoUsingJoin() {
 		Category category = categoryMapper.findAll().get(0);
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 		todo.setTitle("JOINカテゴリ取得テスト");
 		todo.setCategory(category);
 		todoMapper.insert(todo);
@@ -125,29 +163,33 @@ class DemoApplicationTests {
 	@Test
 	void todoMapperSearchesTitlesByPartialMatch() {
 		Todo matchingTodo = new Todo();
+		matchingTodo.setUserId(testUserId);
 		matchingTodo.setTitle("部分一致検索の対象");
 		matchingTodo.setCompleted(false);
 		todoMapper.insert(matchingTodo);
 
 		Todo nonMatchingTodo = new Todo();
+		nonMatchingTodo.setUserId(testUserId);
 		nonMatchingTodo.setTitle("別のタイトル");
 		nonMatchingTodo.setCompleted(false);
 		todoMapper.insert(nonMatchingTodo);
 
-		assertTrue(todoMapper.searchByTitle("一致検索", "createdAt", "desc").stream()
+		assertTrue(todoMapper.searchByTitle("一致検索", testUserId, "createdAt", "desc").stream()
 				.anyMatch(todo -> todo.getId().equals(matchingTodo.getId())));
-		assertFalse(todoMapper.searchByTitle("一致検索", "createdAt", "desc").stream()
+		assertFalse(todoMapper.searchByTitle("一致検索", testUserId, "createdAt", "desc").stream()
 				.anyMatch(todo -> todo.getId().equals(nonMatchingTodo.getId())));
 	}
 
 	@Test
 	void todoMapperSortsByTitleStatusAndCreationDate() {
 		Todo newerTodo = new Todo();
+		newerTodo.setUserId(testUserId);
 		newerTodo.setTitle("Zソートテスト");
 		newerTodo.setCompleted(true);
 		todoMapper.insert(newerTodo);
 
 		Todo olderTodo = new Todo();
+		olderTodo.setUserId(testUserId);
 		olderTodo.setTitle("Aソートテスト");
 		olderTodo.setCompleted(false);
 		todoMapper.insert(olderTodo);
@@ -158,22 +200,22 @@ class DemoApplicationTests {
 				Timestamp.valueOf(LocalDateTime.of(2026, 1, 1, 0, 0)), olderTodo.getId());
 
 		assertEquals(List.of(olderTodo.getId(), newerTodo.getId()),
-				todoMapper.findAll("title", "asc").stream()
+				todoMapper.findAll(testUserId, "title", "asc").stream()
 						.filter(todo -> List.of(olderTodo.getId(), newerTodo.getId()).contains(todo.getId()))
 						.map(Todo::getId)
 						.toList());
 		assertEquals(List.of(newerTodo.getId(), olderTodo.getId()),
-				todoMapper.findAll("title", "desc").stream()
+				todoMapper.findAll(testUserId, "title", "desc").stream()
 						.filter(todo -> List.of(olderTodo.getId(), newerTodo.getId()).contains(todo.getId()))
 						.map(Todo::getId)
 						.toList());
 		assertEquals(List.of(olderTodo.getId(), newerTodo.getId()),
-				todoMapper.findAll("completed", "asc").stream()
+				todoMapper.findAll(testUserId, "completed", "asc").stream()
 						.filter(todo -> List.of(olderTodo.getId(), newerTodo.getId()).contains(todo.getId()))
 						.map(Todo::getId)
 						.toList());
 		assertEquals(List.of(olderTodo.getId(), newerTodo.getId()),
-				todoMapper.findAll("createdAt", "asc").stream()
+				todoMapper.findAll(testUserId, "createdAt", "asc").stream()
 						.filter(todo -> List.of(olderTodo.getId(), newerTodo.getId()).contains(todo.getId()))
 						.map(Todo::getId)
 						.toList());
@@ -182,28 +224,31 @@ class DemoApplicationTests {
 	@Test
 	void todoMapperSortsPrioritiesInPriorityOrder() {
 		Todo lowPriorityTodo = new Todo();
+		lowPriorityTodo.setUserId(testUserId);
 		lowPriorityTodo.setTitle("低優先度");
 		lowPriorityTodo.setPriority(Priority.LOW);
 		todoMapper.insert(lowPriorityTodo);
 
 		Todo mediumPriorityTodo = new Todo();
+		mediumPriorityTodo.setUserId(testUserId);
 		mediumPriorityTodo.setTitle("中優先度");
 		mediumPriorityTodo.setPriority(Priority.MEDIUM);
 		todoMapper.insert(mediumPriorityTodo);
 
 		Todo highPriorityTodo = new Todo();
+		highPriorityTodo.setUserId(testUserId);
 		highPriorityTodo.setTitle("高優先度");
 		highPriorityTodo.setPriority(Priority.HIGH);
 		todoMapper.insert(highPriorityTodo);
 
 		List<Long> targetIds = List.of(
 				highPriorityTodo.getId(), mediumPriorityTodo.getId(), lowPriorityTodo.getId());
-		assertEquals(targetIds, todoMapper.findAll("priority", "asc").stream()
+		assertEquals(targetIds, todoMapper.findAll(testUserId, "priority", "asc").stream()
 				.filter(todo -> targetIds.contains(todo.getId()))
 				.map(Todo::getId)
 				.toList());
 		assertEquals(List.of(lowPriorityTodo.getId(), mediumPriorityTodo.getId(), highPriorityTodo.getId()),
-				todoMapper.findAll("priority", "desc").stream()
+				todoMapper.findAll(testUserId, "priority", "desc").stream()
 						.filter(todo -> targetIds.contains(todo.getId()))
 						.map(Todo::getId)
 						.toList());
@@ -212,22 +257,24 @@ class DemoApplicationTests {
 	@Test
 	void todoMapperSortsByDeadline() {
 		Todo laterTodo = new Todo();
+		laterTodo.setUserId(testUserId);
 		laterTodo.setTitle("期限遅い");
 		laterTodo.setDeadline(LocalDate.now().plusDays(2));
 		todoMapper.insert(laterTodo);
 
 		Todo soonerTodo = new Todo();
+		soonerTodo.setUserId(testUserId);
 		soonerTodo.setTitle("期限早い");
 		soonerTodo.setDeadline(LocalDate.now().plusDays(1));
 		todoMapper.insert(soonerTodo);
 
 		List<Long> targetIds = List.of(soonerTodo.getId(), laterTodo.getId());
-		assertEquals(targetIds, todoMapper.findAll("deadline", "asc").stream()
+		assertEquals(targetIds, todoMapper.findAll(testUserId, "deadline", "asc").stream()
 				.filter(todo -> targetIds.contains(todo.getId()))
 				.map(Todo::getId)
 				.toList());
 		assertEquals(List.of(laterTodo.getId(), soonerTodo.getId()),
-				todoMapper.findAll("deadline", "desc").stream()
+				todoMapper.findAll(testUserId, "deadline", "desc").stream()
 						.filter(todo -> targetIds.contains(todo.getId()))
 						.map(Todo::getId)
 						.toList());
@@ -236,6 +283,7 @@ class DemoApplicationTests {
 	@Test
 	void isCompletedReflectsCompletionFlag() {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 
 		assertFalse(todo.isCompleted());
 		todo.setCompleted(true);
@@ -247,6 +295,7 @@ class DemoApplicationTests {
 	@Test
 	void deadlineWarningsDistinguishOverdueAndUpcomingDates() {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 
 		assertFalse(todo.isOverdue());
 		assertFalse(todo.isNearDeadline());
@@ -271,11 +320,12 @@ class DemoApplicationTests {
 	@Test
 	void todoMapperDeletesTodoById() {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 		todo.setTitle("削除Mapperテスト");
 		todo.setCompleted(false);
 		todoMapper.insert(todo);
 
-		assertEquals(1, todoMapper.deleteById(todo.getId()));
+		assertEquals(1, todoMapper.deleteById(todo.getId(), testUserId));
 		assertEquals(0, jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM todos WHERE id = ?", Integer.class, todo.getId()));
 	}
@@ -283,18 +333,21 @@ class DemoApplicationTests {
 	@Test
 	void todoMapperDeletesTodosByIdsAndPreservesUnselectedTodos() {
 		Todo firstTodo = new Todo();
+		firstTodo.setUserId(testUserId);
 		firstTodo.setTitle("一括削除Mapper対象1");
 		todoMapper.insert(firstTodo);
 
 		Todo secondTodo = new Todo();
+		secondTodo.setUserId(testUserId);
 		secondTodo.setTitle("一括削除Mapper対象2");
 		todoMapper.insert(secondTodo);
 
 		Todo remainingTodo = new Todo();
+		remainingTodo.setUserId(testUserId);
 		remainingTodo.setTitle("一括削除Mapper対象外");
 		todoMapper.insert(remainingTodo);
 
-		assertEquals(2, todoMapper.deleteByIds(List.of(firstTodo.getId(), secondTodo.getId())));
+		assertEquals(2, todoMapper.deleteByIds(List.of(firstTodo.getId(), secondTodo.getId()), testUserId));
 		assertEquals(0, jdbcTemplate.queryForObject(
 				"SELECT COUNT(*) FROM todos WHERE id IN (?, ?)",
 				Integer.class, firstTodo.getId(), secondTodo.getId()));
@@ -332,17 +385,20 @@ class DemoApplicationTests {
 	@Test
 	void todoListPageDisplaysDatabaseTodosAndCompletionStatus() throws Exception {
 		Todo incompleteTodo = new Todo();
+		incompleteTodo.setUserId(testUserId);
 		incompleteTodo.setTitle("未完了一覧テスト");
 		incompleteTodo.setCompleted(false);
 		incompleteTodo.setDeadline(LocalDate.now().minusDays(1));
 		todoMapper.insert(incompleteTodo);
 
 		Todo nearDeadlineTodo = new Todo();
+		nearDeadlineTodo.setUserId(testUserId);
 		nearDeadlineTodo.setTitle("期限間近一覧テスト");
 		nearDeadlineTodo.setDeadline(LocalDate.now().plusDays(2));
 		todoMapper.insert(nearDeadlineTodo);
 
 		Todo completedTodo = new Todo();
+		completedTodo.setUserId(testUserId);
 		completedTodo.setTitle("完了一覧テスト");
 		completedTodo.setCompleted(true);
 		completedTodo.setPriority(Priority.HIGH);
@@ -419,6 +475,7 @@ class DemoApplicationTests {
 	@Test
 	void todoListSortLinksPreserveSearchAndShowCurrentDirection() throws Exception {
 		Todo matchingTodo = new Todo();
+		matchingTodo.setUserId(testUserId);
 		matchingTodo.setTitle("needle sort test");
 		matchingTodo.setCompleted(false);
 		todoMapper.insert(matchingTodo);
@@ -442,11 +499,13 @@ class DemoApplicationTests {
 	@Test
 	void todoListSearchDisplaysMatchingTodosAndPreservesKeyword() throws Exception {
 		Todo matchingTodo = new Todo();
+		matchingTodo.setUserId(testUserId);
 		matchingTodo.setTitle("検索フォーム表示対象");
 		matchingTodo.setCompleted(false);
 		todoMapper.insert(matchingTodo);
 
 		Todo nonMatchingTodo = new Todo();
+		nonMatchingTodo.setUserId(testUserId);
 		nonMatchingTodo.setTitle("検索対象外タイトル");
 		nonMatchingTodo.setCompleted(false);
 		todoMapper.insert(nonMatchingTodo);
@@ -473,11 +532,13 @@ class DemoApplicationTests {
 		jdbcTemplate.update("DELETE FROM todos");
 		for (int i = 1; i <= 21; i++) {
 			Todo todo = new Todo();
+		todo.setUserId(testUserId);
 			todo.setTitle("ページング検索対象" + "%02d".formatted(i));
 			todo.setCompleted(false);
 			todoMapper.insert(todo);
 		}
 		Todo unrelatedTodo = new Todo();
+		unrelatedTodo.setUserId(testUserId);
 		unrelatedTodo.setTitle("ページング対象外");
 		unrelatedTodo.setCompleted(false);
 		todoMapper.insert(unrelatedTodo);
@@ -514,11 +575,13 @@ class DemoApplicationTests {
 		Category otherCategory = categories.get(1);
 
 		Todo matchingTodo = new Todo();
+		matchingTodo.setUserId(testUserId);
 		matchingTodo.setTitle("カテゴリ検索対象");
 		matchingTodo.setCategory(selectedCategory);
 		todoMapper.insert(matchingTodo);
 
 		Todo otherTodo = new Todo();
+		otherTodo.setUserId(testUserId);
 		otherTodo.setTitle("カテゴリ検索対象外");
 		otherTodo.setCategory(otherCategory);
 		todoMapper.insert(otherTodo);
@@ -548,6 +611,7 @@ class DemoApplicationTests {
 		Category selectedCategory = categories.get(0);
 
 		Todo matchingTodo = new Todo();
+		matchingTodo.setUserId(testUserId);
 		matchingTodo.setTitle("CSV, \"タイトル\"");
 		matchingTodo.setAuthor("作成者, \"A\"");
 		matchingTodo.setCompleted(true);
@@ -555,11 +619,13 @@ class DemoApplicationTests {
 		todoMapper.insert(matchingTodo);
 
 		Todo wrongCategoryTodo = new Todo();
+		wrongCategoryTodo.setUserId(testUserId);
 		wrongCategoryTodo.setTitle("CSVカテゴリ対象外");
 		wrongCategoryTodo.setCategory(categories.get(1));
 		todoMapper.insert(wrongCategoryTodo);
 
 		Todo wrongKeywordTodo = new Todo();
+		wrongKeywordTodo.setUserId(testUserId);
 		wrongKeywordTodo.setTitle("別キーワード");
 		wrongKeywordTodo.setCategory(selectedCategory);
 		todoMapper.insert(wrongKeywordTodo);
@@ -596,6 +662,7 @@ class DemoApplicationTests {
 	@Test
 	void todoEditPageDisplaysExistingTitleAndUpdateAction() throws Exception {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 		todo.setTitle("編集前タイトル");
 		todo.setCompleted(false);
 		todo.setCategory(categoryMapper.findAll().get(0));
@@ -625,6 +692,7 @@ class DemoApplicationTests {
 	@Test
 	void attachmentUploadDownloadAndDeleteUseSanitizedMetadata() throws Exception {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 		todo.setTitle("添付ファイルテスト");
 		todoMapper.insert(todo);
 		byte[] fileContents = "安全なテキスト".getBytes(StandardCharsets.UTF_8);
@@ -666,6 +734,7 @@ class DemoApplicationTests {
 	@Test
 	void deletingTodoAlsoRemovesItsAttachmentFiles() throws Exception {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 		todo.setTitle("添付付きToDo削除テスト");
 		todoMapper.insert(todo);
 		mockMvc.perform(multipart("/todo/{todoId}/attachments", todo.getId())
@@ -688,6 +757,7 @@ class DemoApplicationTests {
 	@Test
 	void attachmentUploadRejectsDisallowedTypesAndMismatchedContent() throws Exception {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 		todo.setTitle("添付形式チェックテスト");
 		todoMapper.insert(todo);
 
@@ -710,6 +780,7 @@ class DemoApplicationTests {
 	@Test
 	void attachmentUploadRejectsFilesFlaggedByVirusScanner() throws Exception {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 		todo.setTitle("ウイルス検査テスト");
 		todoMapper.insert(todo);
 		doThrow(new VirusDetectedException()).when(virusScanner).scan(any(byte[].class));
@@ -727,6 +798,7 @@ class DemoApplicationTests {
 	@Test
 	void updatingTodoTitlePersistsAndRedirectsToList() throws Exception {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 		todo.setTitle("更新前タイトル");
 		todo.setCompleted(false);
 		Category category = categoryMapper.findAll().get(0);
@@ -751,17 +823,16 @@ class DemoApplicationTests {
 	}
 
 	@Test
-	void updatingMissingTodoShowsErrorFlashMessage() throws Exception {
+	void updatingMissingTodoIsForbidden() throws Exception {
 		mockMvc.perform(post("/todo/{id}/update", Long.MAX_VALUE)
 						.param("title", "存在しないToDo"))
-				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("/todo"))
-				.andExpect(flash().attribute("errorMessage", "更新に失敗しました"));
+				.andExpect(status().isForbidden());
 	}
 
 	@Test
 	void togglingTodoCompletionFlipsStateAndRedirectsToList() throws Exception {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 		todo.setTitle("完了状態切替テスト");
 		todo.setCompleted(false);
 		todoMapper.insert(todo);
@@ -780,11 +851,13 @@ class DemoApplicationTests {
 	@Test
 	void deletingTodoRedirectsToListAndPreservesOtherTodos() throws Exception {
 		Todo todoToDelete = new Todo();
+		todoToDelete.setUserId(testUserId);
 		todoToDelete.setTitle("削除対象テスト");
 		todoToDelete.setCompleted(false);
 		todoMapper.insert(todoToDelete);
 
 		Todo otherTodo = new Todo();
+		otherTodo.setUserId(testUserId);
 		otherTodo.setTitle("削除対象外テスト");
 		otherTodo.setCompleted(false);
 		todoMapper.insert(otherTodo);
@@ -802,24 +875,25 @@ class DemoApplicationTests {
 	}
 
 	@Test
-	void deletingMissingTodoShowsErrorFlashMessage() throws Exception {
+	void deletingMissingTodoIsForbidden() throws Exception {
 		mockMvc.perform(delete("/todo/{id}", Long.MAX_VALUE))
-				.andExpect(status().is3xxRedirection())
-				.andExpect(redirectedUrl("/todo"))
-				.andExpect(flash().attribute("errorMessage", "削除に失敗しました"));
+				.andExpect(status().isForbidden());
 	}
 
 	@Test
 	void bulkDeletingSelectedTodosRemovesOnlySelectedIds() throws Exception {
 		Todo firstTodo = new Todo();
+		firstTodo.setUserId(testUserId);
 		firstTodo.setTitle("一括削除対象1");
 		todoMapper.insert(firstTodo);
 
 		Todo secondTodo = new Todo();
+		secondTodo.setUserId(testUserId);
 		secondTodo.setTitle("一括削除対象2");
 		todoMapper.insert(secondTodo);
 
 		Todo remainingTodo = new Todo();
+		remainingTodo.setUserId(testUserId);
 		remainingTodo.setTitle("一括削除対象外");
 		todoMapper.insert(remainingTodo);
 
@@ -839,6 +913,7 @@ class DemoApplicationTests {
 	@Test
 	void bulkDeleteWithoutSelectedIdsDoesNotDeleteTodos() throws Exception {
 		Todo todo = new Todo();
+		todo.setUserId(testUserId);
 		todo.setTitle("未選択一括削除テスト");
 		todoMapper.insert(todo);
 
@@ -960,7 +1035,7 @@ class DemoApplicationTests {
 				"SELECT priority FROM todos WHERE title = ?", String.class, title));
 		assertEquals(category.getId(), jdbcTemplate.queryForObject(
 				"SELECT category_id FROM todos WHERE title = ?", Long.class, title));
-		Todo registeredTodo = todoMapper.findAll("title", "asc").stream()
+		Todo registeredTodo = todoMapper.findAll(testUserId, "title", "asc").stream()
 				.filter(todo -> todo.getTitle().equals(title))
 				.findFirst()
 				.orElseThrow();
