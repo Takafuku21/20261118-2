@@ -44,7 +44,10 @@
 	</div>
 	<div class="d-flex justify-content-between align-items-center mb-4">
 		<h1 class="h2 mb-0">ToDo一覧</h1>
-		<a class="btn btn-primary" href="/todo/new">新規登録</a>
+		<div class="d-flex gap-2">
+			<a sec:authorize="hasRole('ADMIN')" class="btn btn-outline-primary" th:href="@{/admin/users}">Users</a>
+			<a class="btn btn-primary" href="/todo/new">新規登録</a>
+		</div>
 	</div>
 
 	<div th:if="${successMessage}" class="alert alert-success fade show auto-dismiss-alert" role="status"

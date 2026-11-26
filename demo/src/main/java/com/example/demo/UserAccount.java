@@ -6,6 +6,7 @@ public class UserAccount {
 	private String username;
 	private String password;
 	private String role;
+	private boolean enabled = true;
 
 	public Long getId() {
 		return id;
@@ -38,4 +39,7 @@ public class UserAccount {
 	public void setRole(String role) {
 		this.role = role;
 	}
+
+	public boolean isEnabled() { return enabled; }
+	public void setEnabled(boolean enabled) { this.enabled = enabled; }
 }

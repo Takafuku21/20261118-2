@@ -78,7 +78,7 @@ public class TodoController {
 		String normalizedDirection = normalizeDirection(direction);
 		Pageable fixedPageable = PageRequest.of(pageable.getPageNumber(), PAGE_SIZE);
 		Page<Todo> todoPage = todoService.findPage(
-				normalizedKeyword, categoryId, fixedPageable, normalizedSort, normalizedDirection, user.getId());
+				normalizedKeyword, categoryId, fixedPageable, normalizedSort, normalizedDirection, scopeUserId(user));
 		model.addAttribute("todos", todoPage.getContent());
 		model.addAttribute("page", todoPage);
 		model.addAttribute("startItem", todoPage.isEmpty()
@@ -115,7 +115,7 @@ public class TodoController {
 				normalizeKeyword(keyword),
 				categoryId,
 				normalizeSort(sort),
-				normalizeDirection(direction), user.getId());
+				normalizeDirection(direction), scopeUserId(user));
 		byte[] csvBytes = ("\uFEFF" + toCsv(todos)).getBytes(StandardCharsets.UTF_8);
 		String filename = "todo_" + LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE) + ".csv";
 		HttpHeaders headers = new HttpHeaders();
@@ -230,7 +230,7 @@ public class TodoController {
 		todo.setPriority(priority);
 		todo.setCategory(category);
 		todo.setDeadline(deadline);
-		if (todoService.update(id, todo, user.getId())) {
+		if (todoService.update(id, todo, scopeUserId(user))) {
 			redirectAttributes.addFlashAttribute("successMessage", "更新が完了しました");
 		} else {
 			redirectAttributes.addFlashAttribute("errorMessage", "更新に失敗しました");
@@ -243,7 +243,7 @@ public class TodoController {
 			@PathVariable Long id,
 			RedirectAttributes redirectAttributes,
 			@AuthenticationPrincipal AuthenticatedUser user) {
-		if (!todoService.toggleCompleted(id, user.getId())) {
+		if (!todoService.toggleCompleted(id, scopeUserId(user))) {
 			redirectAttributes.addFlashAttribute("errorMessage", "完了状態の更新に失敗しました");
 		}
 		return "redirect:/todo";
@@ -307,7 +307,7 @@ public class TodoController {
 			redirectAttributes.addFlashAttribute("errorMessage", "添付ファイルを削除できませんでした");
 			return "redirect:/todo";
 		}
-		if (todoService.deleteById(id, user.getId())) {
+		if (todoService.deleteById(id, scopeUserId(user))) {
 			redirectAttributes.addFlashAttribute("successMessage", "ToDoを削除しました");
 		} else {
 			redirectAttributes.addFlashAttribute("errorMessage", "削除に失敗しました");
@@ -337,7 +337,7 @@ public class TodoController {
 			redirectAttributes.addFlashAttribute("errorMessage", "添付ファイルを削除できませんでした");
 			return "redirect:/todo";
 		}
-		int deletedCount = todoService.deleteByIds(ids, user.getId());
+		int deletedCount = todoService.deleteByIds(ids, scopeUserId(user));
 		if (deletedCount > 0) {
 			redirectAttributes.addFlashAttribute(
 					"successMessage", "選択したToDoを" + deletedCount + "件削除しました");
@@ -350,6 +350,11 @@ public class TodoController {
 	private static String normalizeKeyword(String keyword) {
 		String normalizedKeyword = keyword == null ? null : keyword.trim();
 		return normalizedKeyword == null || normalizedKeyword.isEmpty() ? null : normalizedKeyword;
+	}
+
+	private static Long scopeUserId(AuthenticatedUser user) {
+		return user.getAuthorities().stream().anyMatch(authority -> "ROLE_ADMIN".equals(authority.getAuthority()))
+				? null : user.getId();
 	}
 
 	private static String normalizeSort(String sort) {

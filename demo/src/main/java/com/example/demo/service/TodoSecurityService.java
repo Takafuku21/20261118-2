@@ -19,6 +19,7 @@ public class TodoSecurityService {
 			return false;
 		}
 		Todo todo = todoMapper.findById(id);
-		return todo != null && user.getId().equals(todo.getUserId());
+		return todo != null && (user.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()))
+				|| user.getId().equals(todo.getUserId()));
 	}
 }

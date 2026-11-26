@@ -25,7 +25,12 @@ public class BootstrapUserInitializer {
 				logger.info("Bootstrap user creation skipped because credentials are not configured");
 				return;
 			}
-			if (userMapper.findByUsername(username) != null) {
+			UserAccount existingUser = userMapper.findByUsername(username);
+			if (existingUser != null) {
+				if (!"ADMIN".equals(existingUser.getRole())) {
+					userMapper.promoteToAdmin(existingUser.getId());
+					logger.info("Configured bootstrap user was promoted to ADMIN");
+				}
 				logger.info("Bootstrap user already exists; leaving its password unchanged");
 				return;
 			}
@@ -33,7 +38,7 @@ public class BootstrapUserInitializer {
 			UserAccount user = new UserAccount();
 			user.setUsername(username);
 			user.setPassword(passwordEncoder.encode(password));
-			user.setRole("USER");
+			user.setRole("ADMIN");
 			userMapper.insert(user);
 			logger.info("Bootstrap user created with BCrypt password encoding");
 		};

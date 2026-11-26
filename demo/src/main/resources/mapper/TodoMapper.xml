@@ -27,7 +27,7 @@
 
 	<sql id="todoFilters">
 		<where>
-			t.user_id = #{userId}
+			<if test="userId != null">t.user_id = #{userId}</if>
 			<if test="keyword != null and keyword != ''">
 				AND t.title LIKE CONCAT('%', #{keyword}, '%')
 			</if>
@@ -113,15 +113,19 @@
 
 	<delete id="deleteById" parameterType="long">
 		DELETE FROM todos
-		WHERE id = #{id} AND user_id = #{userId}
+		WHERE id = #{id}
+		<if test="userId != null">AND user_id = #{userId}</if>
 	</delete>
 
 	<delete id="deleteByIds">
 		DELETE FROM todos
-		WHERE user_id = #{userId} AND id IN
+		<where>
+			<if test="userId != null">user_id = #{userId} AND</if>
+			id IN
 		<foreach collection="ids" item="id" open="(" separator="," close=")">
 			#{id}
 		</foreach>
+		</where>
 	</delete>
 
 	<update id="update" parameterType="com.example.demo.Todo">
@@ -131,11 +135,13 @@
 			priority = #{todo.priority},
 			category_id = #{todo.category.id},
 			deadline = #{todo.deadline}
-		WHERE id = #{todo.id} AND user_id = #{userId}
+		WHERE id = #{todo.id}
+		<if test="userId != null">AND user_id = #{userId}</if>
 	</update>
 
 	<update id="toggleCompleted">
 		UPDATE todos SET completed = NOT completed
-		WHERE id = #{id} AND user_id = #{userId}
+		WHERE id = #{id}
+		<if test="userId != null">AND user_id = #{userId}</if>
 	</update>
 </mapper>

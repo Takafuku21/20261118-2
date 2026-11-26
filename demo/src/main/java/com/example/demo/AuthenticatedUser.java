@@ -12,11 +12,13 @@ public class AuthenticatedUser implements UserDetails {
 	private final String username;
 	private final String password;
 	private final List<GrantedAuthority> authorities;
+	private final boolean enabled;
 
 	public AuthenticatedUser(UserAccount account, String authority) {
 		this.id = account.getId();
 		this.username = account.getUsername();
 		this.password = account.getPassword();
+		this.enabled = account.isEnabled();
 		this.authorities = List.of((GrantedAuthority) () -> authority);
 	}
 
@@ -27,5 +29,5 @@ public class AuthenticatedUser implements UserDetails {
 	@Override public boolean isAccountNonExpired() { return true; }
 	@Override public boolean isAccountNonLocked() { return true; }
 	@Override public boolean isCredentialsNonExpired() { return true; }
-	@Override public boolean isEnabled() { return true; }
+	@Override public boolean isEnabled() { return enabled; }
 }
