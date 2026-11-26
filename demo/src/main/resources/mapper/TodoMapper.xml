@@ -117,6 +117,10 @@
 		<if test="userId != null">AND user_id = #{userId}</if>
 	</delete>
 
+	<delete id="deleteAllByUserId">
+		DELETE FROM todos WHERE user_id = #{userId}
+	</delete>
+
 	<delete id="deleteByIds">
 		DELETE FROM todos
 		<where>

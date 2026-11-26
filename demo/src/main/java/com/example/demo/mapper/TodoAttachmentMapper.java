@@ -15,4 +15,6 @@ public interface TodoAttachmentMapper {
 	int insert(TodoAttachment attachment);
 
 	int deleteById(@Param("id") Long id);
+
+	List<String> findStoredFilenamesByUserId(@Param("userId") Long userId);
 }

@@ -1,5 +1,7 @@
 package com.example.demo;
 
+import java.time.LocalDateTime;
+
 public class UserAccount {
 
 	private Long id;
@@ -7,6 +9,7 @@ public class UserAccount {
 	private String password;
 	private String role;
 	private boolean enabled = true;
+	private LocalDateTime updatedAt;
 
 	public Long getId() {
 		return id;
@@ -42,4 +45,6 @@ public class UserAccount {
 
 	public boolean isEnabled() { return enabled; }
 	public void setEnabled(boolean enabled) { this.enabled = enabled; }
+	public LocalDateTime getUpdatedAt() { return updatedAt; }
+	public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 }

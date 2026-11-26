@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
@@ -10,36 +10,54 @@
 <main class="container py-5">
 	<div class="d-flex justify-content-between align-items-center mb-4">
 		<h1 class="h2">User administration</h1>
-		<a class="btn btn-outline-secondary" th:href="@{/todo}">Back to ToDo list</a>
+		<div class="d-flex gap-2">
+			<a class="btn btn-primary" th:href="@{/admin/users/new}">Create user</a>
+			<a class="btn btn-outline-secondary" th:href="@{/todo}">Back to ToDo list</a>
+		</div>
 	</div>
 	<div th:if="${successMessage}" class="alert alert-success" role="status" th:text="${successMessage}"></div>
 	<div th:if="${errorMessage}" class="alert alert-danger" role="alert" th:text="${errorMessage}"></div>
 	<div class="table-responsive">
 		<table class="table table-striped align-middle">
-			<thead><tr><th>Username</th><th>Role and status</th><th>Actions</th></tr></thead>
+			<thead><tr><th>Username</th><th>Role</th><th>Status</th><th>Updated</th><th>Actions</th></tr></thead>
 			<tbody>
 			<tr th:each="user : ${users}">
 				<td th:text="${user.username}"></td>
-				<td colspan="2">
-					<form method="post" th:action="@{/admin/users/update}" class="d-flex flex-wrap align-items-center gap-2">
-						<input type="hidden" name="id" th:value="${user.id}">
-						<label class="visually-hidden" th:for="|role-${user.id}|">Role</label>
-						<select class="form-select w-auto" name="role" th:id="|role-${user.id}|">
-							<option value="USER" th:selected="${user.role == 'USER'}">USER</option>
-							<option value="ADMIN" th:selected="${user.role == 'ADMIN'}">ADMIN</option>
-						</select>
-						<div class="form-check">
-							<input class="form-check-input" type="checkbox" name="enabled" value="true"
-								   th:checked="${user.enabled}" th:id="|enabled-${user.id}|">
-							<label class="form-check-label" th:for="|enabled-${user.id}|">Enabled</label>
-						</div>
-						<button class="btn btn-primary btn-sm" type="submit">Save</button>
+				<td th:text="${user.role}"></td>
+				<td th:text="${user.enabled} ? 'Enabled' : 'Disabled'"></td>
+				<td th:text="${user.updatedAt}"></td>
+				<td class="d-flex gap-2">
+					<a class="btn btn-outline-primary btn-sm" th:href="@{/admin/users/{id}/edit(id=${user.id})}">Edit</a>
+					<form method="post" th:action="@{/admin/users/{id}/delete(id=${user.id})}"
+						  th:attr="data-delete-user=${user.username}">
+						<button class="btn btn-danger btn-sm" type="button" data-confirm-delete>Delete</button>
 					</form>
 				</td>
 			</tr>
 			</tbody>
 		</table>
 	</div>
+	<dialog id="delete-confirmation" class="p-4 rounded border-0 shadow" aria-labelledby="delete-title">
+		<h2 id="delete-title" class="h5">Delete user?</h2>
+		<p>Delete <strong id="delete-username"></strong> and all related ToDos?</p>
+		<div class="d-flex justify-content-end gap-2">
+			<button type="button" class="btn btn-outline-secondary" data-cancel>Cancel</button>
+			<button type="button" class="btn btn-danger" data-confirm>Delete</button>
+		</div>
+	</dialog>
 </main>
+<script>
+	const dialog = document.getElementById("delete-confirmation");
+	let pendingForm;
+	document.querySelectorAll("[data-confirm-delete]").forEach((button) => button.addEventListener("click", () => {
+		pendingForm = button.closest("form");
+		document.getElementById("delete-username").textContent = pendingForm.dataset.deleteUser;
+		dialog.showModal();
+	}));
+	document.querySelector("[data-cancel]").addEventListener("click", () => dialog.close());
+	document.querySelector("[data-confirm]").addEventListener("click", () => {
+		if (pendingForm) pendingForm.requestSubmit();
+	});
+</script>
 </body>
 </html>

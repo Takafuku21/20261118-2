@@ -26,6 +26,13 @@
 		WHERE id = #{id}
 	</select>
 
+	<select id="findStoredFilenamesByUserId" resultType="string">
+		SELECT a.stored_filename
+		FROM todo_attachments a
+		INNER JOIN todos t ON t.id = a.todo_id
+		WHERE t.user_id = #{userId}
+	</select>
+
 	<insert id="insert" parameterType="com.example.demo.TodoAttachment"
 			useGeneratedKeys="true" keyProperty="id">
 		INSERT INTO todo_attachments
